@@ -1,21 +1,23 @@
-// Tipagem para erros da API
 export interface ApiErrorResponse {
   error?: string;
   message?: string;
 }
 
+export interface ApiResponse<T = unknown> {
+  message?: string;
+  error?: string;
+  data?: T;
+}
+
 // ==========================================
-// 1. ENUMS E TIPOS AUXILIARES
+// 2. ENUMS E AUXILIARES
 // ==========================================
 
-// Os papéis definidos no banco de dados (tabela usuarios)
+// Os papéis definidos no banco de dados (tabela niveis_acesso -> slug)
 export type UserRole = 'admin' | 'usuario';
 
-// ==========================================
-// 2. MODELOS DE DADOS (O que o Front vê)
-// ==========================================
 
-// Representação do Usuário logado (Sem senha, sem dados inúteis)
+// Usuário logado ou listado
 export interface User {
   id: string;
   empresa_id: string;
@@ -23,23 +25,22 @@ export interface User {
   nome: string;
   email: string;
   telefone?: string;
-  // Opcional: Data de criação para exibir no perfil
   created_at?: string; 
 }
 
-// Representação básica de uma Empresa (Para listagens)
+// Empresa (Usado na lista do Super Admin)
 export interface Company {
   id: string;
   nome: string;
-  documento: string;
+  documento: string; // CNPJ/CPF
   email: string;
   telefone?: string;
-  status?: boolean; // Se você implementar bloqueio no futuro
+  status?: string;   // 'ativo' | 'inativo'
+  created_at?: string;
+  
+  // Campo calculado pela query SQL (contagem de funcionários)
+  total_usuarios?: number; 
 }
-
-// ==========================================
-// 3. DTOs (Data Transfer Objects - O que enviamos)
-// ==========================================
 
 /**
  * Payload para Login
@@ -50,58 +51,46 @@ export interface LoginDTO {
   password: string;
 }
 
+// Alias para manter compatibilidade com componentes antigos
+export type LoginCredentials = LoginDTO;
+
 /**
- * Payload para Criar Nova Empresa (Painel Super Admin)
+ * Payload para Criar Nova Empresa (Tenant)
  * Endpoint: POST /admin/companies
- * NOTA: Mantivemos snake_case (ex: empresa_nome) pois o 
- * Controller do Backend espera exatamente essas chaves.
+ * * NOTA: Campos limpos (sem prefixo empresa_) para alinhar com o Backend
  */
 export interface CreateCompanyDTO {
   // --- Dados da Empresa ---
-  empresa_nome: string;
-  empresa_documento: string; // CNPJ/CPF
-  empresa_email: string;
-  empresa_telefone: string;
+  nome: string;       
+  documento: string;  
+  email: string;      
+  telefone: string;
 
   // --- Dados do Admin Inicial ---
   admin_nome: string;
   admin_email: string;
-  admin_password: string; // A senha trafega apenas aqui
+  password: string;       
   admin_telefone: string;
 }
 
 /**
- * Payload para Criar Usuário em uma Empresa já existente
- * Endpoint: POST /users (ou rota similar administrativa)
+ * Payload para Criar Usuário
+ * Endpoint: POST /admin/users
  */
 export interface CreateUserDTO {
-  empresa_id: string; // Obrigatório vincular
+  empresa_id: string;
   role: UserRole;
   nome: string;
   email: string;
   password: string;
-  telefone: string;
+  telefone?: string; 
 }
 
-// ==========================================
-// 4. RESPOSTAS DA API
-// ==========================================
-
-// Resposta do Login
 export interface LoginResponse {
   token: string;
   user: User;
 }
 
-// Resposta Padrão de Sucesso/Erro
-export interface ApiResponse<T = unknown> {
-  message?: string;
-  error?: string;
-  data?: T;
-}
-
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
+export interface MasterLoginForm {
+  masterKey: string;
 }

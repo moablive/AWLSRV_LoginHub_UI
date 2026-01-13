@@ -1,0 +1,93 @@
+.admin-container {
+  display: flex;
+  height: 100vh;
+  background-color: #f3f4f6;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background-color: #1e293b; /* Azul escuro/Preto */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.brand {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #cbd5e1;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.nav-item:hover, .nav-item.active {
+  background-color: #3b82f6; /* Azul destaque */
+  color: white;
+}
+
+.logout-btn {
+  margin-top: auto;
+  background: none;
+  border: 1px solid #dc2626;
+  color: #fca5a5;
+}
+
+/* Conteúdo Principal */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+/* Tabela Simples */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.data-table th, .data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+}

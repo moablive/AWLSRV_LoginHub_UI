@@ -1,18 +1,18 @@
-import { Navigate } from 'react-router-dom';
-import type { ReactElement } from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
 
-interface ProtectedRouteProps {
-  children: ReactElement;
-}
-
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute() {
   const token = localStorage.getItem('awl_token');
+  const user = localStorage.getItem('awl_user');
 
-  // Se não tem token, redireciona para Login
-  if (!token) {
+  // Validação Dupla: Precisa ter Token E dados do usuário
+  if (!token || !user) {
+    // Limpa resquícios para evitar estado inconsistente
+    localStorage.removeItem('awl_token');
+    localStorage.removeItem('awl_user');
+    
     return <Navigate to="/" replace />;
   }
 
-  // Se tem token, renderiza a página solicitada (Dashboard, etc)
-  return children;
+  // Renderiza as rotas filhas (Dashboard, etc)
+  return <Outlet />;
 }

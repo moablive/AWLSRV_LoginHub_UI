@@ -1,95 +1,82 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { AxiosError } from 'axios';
-import { authService } from '../services/authService';
-import type { ApiErrorResponse,LoginCredentials } from '../types/index';
-
+import type { MasterLoginForm } from '../types/index'
 
 export default function Login() {
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginCredentials>();
-  const [loginError, setLoginError] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<MasterLoginForm>();
 
-  // Verifica se existe Master Key no .env para mostrar o atalho
-  const isMasterAdmin = authService.hasMasterKey();
+  const onSubmit = async (data: MasterLoginForm) => {
+    setErrorMsg('');
+    
+    // Simula um pequeno delay para UX (opcional)
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-  const onSubmit = async (data: LoginCredentials) => {
-    setLoginError('');
-    try {
-      // 1. Chama a API
-      const response = await authService.login(data);
+    // 1. Busca a chave real no arquivo .env
+    const envMasterKey = import.meta.env.VITE_MASTER_KEY;
 
-      // 2. Salva Token e User no LocalStorage
-      localStorage.setItem('awl_token', response.token);
-      localStorage.setItem('awl_user', JSON.stringify(response.user));
-
-      // 3. Redireciona para o Dashboard
-      navigate('/dashboard');
-    } catch (err) {
-      console.error(err);
+    // 2. Validação Rígida
+    if (data.masterKey === envMasterKey) {
+      // SUCESSO: A chave bateu.
+      // Opcional: Salvar em sessionStorage para persistir a sessão durante o uso
+      sessionStorage.setItem('is_super_admin', 'true');
       
-      // Tratamento tipado do erro
-      const error = err as AxiosError<ApiErrorResponse>;
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.message || 
-                          'Falha no acesso. Verifique seu e-mail e senha.';
-      
-      setLoginError(errorMessage);
+      // Redireciona para a área de infraestrutura
+      navigate('/super-admin');
+    } else {
+      // ERRO
+      setErrorMsg('Acesso Negado: Chave Mestra inválida.');
     }
   };
 
   return (
     <div className="login-container">
-      <div className="login-card">
-        <h1>🔐 AWL LoginHub</h1>
-        <p className="subtitle">Identifique-se para acessar o ecossistema.</p>
+      <div className="login-card" style={{ borderColor: '#d97706' }}> {/* Cor de alerta/admin */}
+        
+        <h1>🛡️ Infraestrutura</h1>
+        <p className="subtitle">Painel de Provisionamento (Master Access)</p>
 
         <form onSubmit={handleSubmit(onSubmit)}>
-          {/* Campo Email */}
+          
+          {/* Campo Único: Master Key */}
           <div className="form-group">
-            <label>E-mail Corporativo</label>
+            <label>Master Key</label>
             <input 
-              {...register("email", { required: "E-mail é obrigatório" })} 
-              type="email" 
-              placeholder="admin@empresa.com"
-            />
-            {errors.email && <span className="error">{errors.email.message}</span>}
-          </div>
-
-          {/* Campo Senha */}
-          <div className="form-group">
-            <label>Senha</label>
-            <input 
-              {...register("password", { required: "Senha é obrigatória" })} 
+              {...register("masterKey", { required: true })} 
               type="password" 
-              placeholder="••••••••"
+              placeholder="Insira a chave de infraestrutura..."
+              autoFocus
             />
-            {errors.password && <span className="error">{errors.password.message}</span>}
           </div>
 
-          {/* Mensagem de Erro Geral */}
-          {loginError && <div className="alert-error">{loginError}</div>}
+          {/* Mensagem de Erro */}
+          {errorMsg && (
+            <div className="alert-error" style={{ textAlign: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
 
           {/* Botão de Entrar */}
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Autenticando...' : 'Acessar Painel'}
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="btn-warning" // Classe visual sugerida para diferenciar de login comum
+          >
+            {isSubmitting ? 'Verificando...' : 'Acessar Sistema'}
           </button>
         </form>
+        
+        <div className="master-area">
+          <hr />
+          <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+            Este acesso não gera tokens de usuário.<br/>
+            Uso exclusivo para manutenção.
+          </p>
+        </div>
 
-        {/* Área Super Admin (Só aparece se tiver Master Key no .env) */}
-        {isMasterAdmin && (
-          <div className="master-area">
-            <hr />
-            <p>🔧 Modo Desenvolvimento / Master</p>
-            <button 
-              className="btn-secondary"
-              onClick={() => navigate('/super-admin')}
-            >
-              Acessar Painel Super Admin (Master Key)
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
