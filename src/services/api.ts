@@ -1,53 +1,64 @@
 import axios from 'axios';
+import { authService } from './authService';
 
-// Cria a instância do Axios com a URL base definida no .env
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL, 
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// --- INTERCEPTOR DE REQUISIÇÃO ---
-// Antes de cada request sair, esse código roda para injetar as credenciais
+// =================================================================
+// 1. INTERCEPTOR DE REQUISIÇÃO (Saída)
+// =================================================================
 api.interceptors.request.use(
   (config) => {
-    // Busca credenciais no armazenamento local e no .env
     const token = localStorage.getItem('awl_token');
     const masterKey = import.meta.env.VITE_MASTER_KEY;
 
-    // REGRA 1: Rotas de Super Admin (Criação de Empresas)
-    // Se a URL contém '/admin', injeta a Master Key no header específico
+    // REGRA 1: Se for rota administrativa, anexa a Master Key
+    // Isso permite criar empresas sem ter um usuário no banco ainda
     if (config.url?.includes('/admin') && masterKey) {
-      config.headers['x-master-key'] = masterKey;
+      config.headers['x-api-key'] = masterKey; 
     }
 
-    // REGRA 2: Rotas Protegidas Padrão
-    // Se existe um token de usuário logado, injeta o cabeçalho Authorization
+    // REGRA 2: Se tiver token logado, anexa o Bearer Token
+    // Isso serve para autenticar usuários comuns
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// --- INTERCEPTOR DE RESPOSTA (Opcional, mas recomendado) ---
-// Se o backend retornar 401 (Token Expirado/Inválido), limpa o storage
+// =================================================================
+// 2. INTERCEPTOR DE RESPOSTA (Retorno)
+// =================================================================
 api.interceptors.response.use(
-  (response) => response,
+  (response) => response, // Se der tudo certo (200, 201), só passa
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Evita limpar se for erro de login inicial (401 proposital)
-      if (!error.config.url.includes('/auth/login')) {
-        localStorage.removeItem('awl_token');
-        localStorage.removeItem('awl_user');
-        window.location.href = '/'; // Redireciona para login
+    
+    // Se o erro for de RESPOSTA (o servidor respondeu algo)
+    if (error.response) {
+      const { status } = error.response;
+
+      // 401 = Token Expirado ou Inválido
+      if (status === 401) {
+        // Evita loop infinito se já estivermos na tela de login
+        if (!window.location.pathname.includes('/login')) {
+          console.warn('Sessão expirada. Redirecionando para login...');
+          authService.logout(); // Limpa tudo e manda pro login
+        }
+      }
+
+      // 403 = Proibido (Tentou acessar área admin sem ser admin)
+      if (status === 403) {
+        console.error('Acesso negado: Você não tem permissão para este recurso.');
       }
     }
+    
     return Promise.reject(error);
   }
 );

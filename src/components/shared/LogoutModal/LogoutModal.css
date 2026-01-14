@@ -1,0 +1,84 @@
+/* Reutilizando a base do overlay (vidro) */
+.awl-logout-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* Um pouco mais escuro para foco */
+  backdrop-filter: blur(5px);
+  z-index: 1100; /* Acima de tudo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.awl-logout-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  max-width: 380px;
+  width: 90%;
+  transform: scale(0.9);
+  animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Ícone de Saída (Vermelho Suave) */
+.logout-icon-container {
+  width: 70px;
+  height: 70px;
+  background-color: #f8d7da; /* Vermelho Bootstrap bem claro */
+  color: #dc3545; /* Vermelho Perigo */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.2rem auto;
+  font-size: 2rem;
+  /* Animação sutil de balanço */
+  animation: shake 2s infinite; 
+}
+
+/* Botões lado a lado */
+.logout-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.btn-cancel {
+  background-color: #f1f3f5;
+  color: #495057;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-cancel:hover {
+  background-color: #e9ecef;
+}
+
+.btn-confirm-logout {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  font-weight: 600;
+  box-shadow: 0 4px 6px rgba(220, 53, 69, 0.3);
+  transition: all 0.2s;
+}
+.btn-confirm-logout:hover {
+  background-color: #c82333;
+  transform: translateY(-2px);
+}
+
+/* Animações */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popUp { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}

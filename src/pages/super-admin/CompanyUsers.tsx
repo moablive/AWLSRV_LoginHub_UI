@@ -1,210 +1,186 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { AxiosError } from 'axios';
-import { superAdminService } from '../../services/superAdminService';
-import type { CreateUserDTO, User, ApiErrorResponse } from '../../types';
+import { AxiosError } from 'axios'; 
 
-export default function CompanyUsers() {
-  // Tipagem do ID vindo da URL
-  const { id } = useParams<{ id: string }>(); 
+// Services e Types
+import { superAdminService } from '../../services/superAdminService';
+import type { User, CreateUserDTO, ApiErrorResponse } from '../../types';
+
+// Componentes Visuais
+import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
+
+export const CompanyUsers = () => {
+  const { id: empresaId } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
   
-  // Estados locais
+  // Estados de Dados
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoadingList, setIsLoadingList] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Estados de Modal
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Formulário (Removido 'errors' pois não estamos usando msg de erro visual nos inputs deste modal simples)
+  const { register, handleSubmit, reset } = useForm<CreateUserDTO>();
 
-  // Configuração do Formulário
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateUserDTO>({
-    defaultValues: { role: 'usuario' } // Valor padrão para o select
-  });
-
-  // 1. Função para carregar usuários (GET)
+  // Lógica de Carregamento (Memoizada com useCallback para usar no useEffect e no reload)
   const fetchUsers = useCallback(async () => {
-    if (!id) return;
+    if (!empresaId) return;
     try {
-      setIsLoadingList(true);
-      const data = await superAdminService.listUsersByCompany(id);
+      // setLoading(true) opcional aqui, dependendo se quer piscar a tela no reload
+      const data = await superAdminService.getUsersByCompany(empresaId);
       setUsers(data);
-    } catch (err) {
-      console.error(err);
-      setFeedback({ type: 'error', msg: 'Erro ao carregar lista de usuários.' });
+    } catch (error) {
+      console.error('Erro ao carregar usuários', error);
     } finally {
-      setIsLoadingList(false);
+      setLoading(false);
     }
-  }, [id]);
+  }, [empresaId]);
 
-  // Carrega ao montar a tela
+  // Carregamento Inicial
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, [fetchUsers]); // Dependência correta agora
 
-  // 2. Função para criar usuário (POST)
   const onAddUser = async (data: CreateUserDTO) => {
-    if (!id) return;
-    setFeedback(null);
-    setIsCreating(true);
-
+    if (!empresaId) return;
     try {
-      // Injeta o ID da empresa (vindo da URL) no payload
-      const payload: CreateUserDTO = {
+      await superAdminService.createUser({
         ...data,
-        empresa_id: id
-      };
-
-      await superAdminService.createUser(payload);
-
-      setFeedback({ type: 'success', msg: `Usuário "${data.nome}" adicionado com sucesso!` });
-      reset(); // Limpa o formulário
-      fetchUsers(); // Recarrega a lista automaticamente
-
-    } catch (err) {
-      console.error(err);
-      const error = err as AxiosError<ApiErrorResponse>;
-      const msg = error.response?.data?.error || 
-                  error.response?.data?.message || 
-                  'Erro ao criar usuário.';
-      setFeedback({ type: 'error', msg });
-    } finally {
-      setIsCreating(false);
+        empresa_id: empresaId
+      });
+      
+      // 1. Fecha o modal de formulário
+      setShowFormModal(false);
+      
+      // 2. Abre o modal de sucesso (Bonito)
+      setShowSuccessModal(true);
+      
+      // 3. Limpa e Recarrega
+      reset(); 
+      fetchUsers(); 
+      
+    } catch (error) {
+      // Tratamento de Erro Tipado
+      const err = error as AxiosError<ApiErrorResponse>;
+      const msg = err.response?.data?.message || 'Erro desconhecido ao adicionar usuário.';
+      alert(`Erro: ${msg}`);
     }
   };
 
   return (
-    <div>
-      {/* Cabeçalho / Voltar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <button 
-          onClick={() => navigate('/super-admin/empresas')} 
-          className="btn-text"
-          style={{ padding: 0 }}
-        >
-          ← Voltar para Lista de Empresas
-        </button>
-        <span style={{ fontSize: '0.8rem', color: '#888' }}>Empresa ID: {id}</span>
+    <div className="container mt-4">
+      {/* CABEÇALHO */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="mb-1">👥 Gestão de Usuários</h2>
+          <small className="text-muted">Empresa ID: {empresaId}</small>
+        </div>
+        <div>
+          <button className="btn btn-outline-secondary me-2" onClick={() => navigate(-1)}>Voltar</button>
+          <button className="btn btn-success" onClick={() => setShowFormModal(true)}>+ Novo Usuário</button>
+        </div>
       </div>
-      
-      <h2 style={{ marginBottom: '20px' }}>Gerenciar Usuários</h2>
 
-      {feedback && (
-        <div className={`alert ${feedback.type === 'error' ? 'alert-error' : 'alert-success'}`}>
-          {feedback.msg}
+      {/* LISTAGEM */}
+      {loading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status"></div>
+          <p className="mt-2 text-muted">Carregando usuários...</p>
         </div>
-      )}
-      
-      <div className="admin-grid-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
-        
-        {/* === FORMULÁRIO DE ADIÇÃO === */}
-        <div className="card" style={{ height: 'fit-content' }}>
-          <h3>➕ Novo Usuário</h3>
-          <p className="subtitle" style={{ marginBottom: '1rem' }}>Adicione um acesso a esta empresa.</p>
-          
-          <form onSubmit={handleSubmit(onAddUser)}>
-            <div className="form-group">
-              <label>Nome Completo</label>
-              <input 
-                {...register("nome", { required: "Nome é obrigatório" })} 
-                className="input-field" 
-                placeholder="Ex: João Silva"
-              />
-              {errors.nome && <span className="error">{errors.nome.message}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>E-mail de Acesso</label>
-              <input 
-                {...register("email", { required: "E-mail é obrigatório" })} 
-                type="email" 
-                className="input-field" 
-                placeholder="joao@empresa.com"
-              />
-              {errors.email && <span className="error">{errors.email.message}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>Senha Provisória</label>
-              <input 
-                {...register("password", { required: "Senha é obrigatória", minLength: 6 })} 
-                type="password" 
-                className="input-field" 
-                placeholder="••••••••"
-              />
-              {errors.password && <span className="error">Mínimo 6 caracteres</span>}
-            </div>
-
-            <div className="form-group">
-              <label>Nível de Permissão</label>
-              <select {...register("role")} className="input-field">
-                <option value="usuario">Usuário Padrão</option>
-                <option value="admin">Admin da Empresa</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Telefone (Opcional)</label>
-              <input {...register("telefone")} className="input-field" placeholder="(00) 00000-0000" />
-            </div>
-
-            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={isCreating}>
-              {isCreating ? 'Salvando...' : 'Cadastrar Usuário'}
-            </button>
-          </form>
-        </div>
-
-        {/* === LISTA DE USUÁRIOS EXISTENTES === */}
-        <div className="card">
-          <h3>👥 Usuários Ativos</h3>
-          
-          {isLoadingList ? (
-            <p style={{ color: '#666', padding: '20px' }}>Carregando usuários...</p>
-          ) : users.length === 0 ? (
-            <div className="empty-state">
-              <p>Nenhum usuário cadastrado nesta empresa além do dono.</p>
-            </div>
-          ) : (
-            <table className="data-table">
-              <thead>
+      ) : (
+        <div className="card shadow-sm">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light">
                 <tr>
-                  <th>Nome / E-mail</th>
-                  <th>Nível</th>
-                  <th>Telefone</th>
+                  <th className="ps-4">Nome</th>
+                  <th>E-mail</th>
+                  <th>Role</th>
                   <th>Cadastro</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td>
-                      <strong>{u.nome}</strong><br/>
-                      <small style={{ color: '#64748b' }}>{u.email}</small>
-                    </td>
-                    <td>
-                      <span style={{ 
-                        padding: '2px 8px', 
-                        borderRadius: '4px', 
-                        background: u.role === 'admin' ? '#e0e7ff' : '#f1f5f9',
-                        color: u.role === 'admin' ? '#4338ca' : '#475569',
-                        fontSize: '0.8rem',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase'
-                      }}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td>{u.telefone || '-'}</td>
-                    <td style={{ fontSize: '0.85rem' }}>
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                  </tr>
-                ))}
+                {users.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center p-4 text-muted">Nenhum usuário encontrado nesta empresa.</td></tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id}>
+                      <td className="fw-bold ps-4">{user.nome}</td>
+                      <td>{user.email}</td>
+                      <td>
+                        <span className={`badge ${user.role === 'admin' ? 'bg-warning text-dark' : 'bg-info'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-          )}
+          </div>
         </div>
+      )}
 
-      </div>
+      {/* --- MODAL DE FORMULÁRIO (Bootstrap Native) --- */}
+      {showFormModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow">
+              <div className="modal-header bg-light">
+                <h5 className="modal-title">Adicionar Usuário</h5>
+                <button type="button" className="btn-close" onClick={() => setShowFormModal(false)}></button>
+              </div>
+              <form onSubmit={handleSubmit(onAddUser)}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label fw-bold small">Nome Completo</label>
+                    <input {...register('nome', { required: true })} className="form-control" placeholder="Ex: João da Silva" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold small">E-mail de Acesso</label>
+                    <input type="email" {...register('email', { required: true })} className="form-control" placeholder="joao@empresa.com" />
+                  </div>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold small">Senha Provisória</label>
+                      <input type="password" {...register('password', { required: true })} className="form-control" placeholder="******" />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold small">Nível de Acesso</label>
+                      <select {...register('role')} className="form-select">
+                        <option value="usuario">Usuário Padrão</option>
+                        <option value="admin">Admin da Empresa</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold small">Telefone</label>
+                    <input {...register('telefone')} className="form-control" placeholder="(00) 0000-0000" />
+                  </div>
+                </div>
+                <div className="modal-footer bg-light">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowFormModal(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">Salvar Usuário</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL DE SUCESSO (Novo Componente) --- */}
+      <SuccessModal 
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Usuário Adicionado!"
+        message="O usuário foi vinculado à empresa com sucesso e já pode realizar login."
+        buttonText="Continuar Gerenciando"
+        autoCloseDuration={4000} // Fecha sozinho em 4s se quiser
+      />
     </div>
   );
-}
+};

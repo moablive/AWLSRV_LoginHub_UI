@@ -7,10 +7,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
 // Layout e Páginas do Super Admin (Infraestrutura)
-import SuperAdminLayout from './layouts/SuperAdminLayout';
-import CompanyList from './pages/super-admin/CompanyList';
-import CreateCompany from './pages/super-admin/CreateCompany';
-import CompanyUsers from './pages/super-admin/CompanyUsers';
+import SuperAdminLayout from './layouts/AdminLayout';
+import CompanyList from './pages/company/CompanyList';
+import CreateCompany from './pages/company/CreateCompany';
+import CompanyUsers from './pages/company/CompanyUsers';
 
 // 🛡️ Guardiões de Rota
 import ProtectedRoute from './router/ProtectedRoute';

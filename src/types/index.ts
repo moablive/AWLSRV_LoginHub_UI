@@ -1,96 +1,70 @@
+// ==========================================
+// 1. RE-EXPORTS (Módulos Específicos)
+// ==========================================
+// Disponibiliza User, Company, CreateCompanyDTO, etc. para toda a aplicação
+export * from './company.types';
+export * from './user.types';
+
+// Importamos tipos específicos apenas para usar dentro deste arquivo (nas respostas abaixo)
+import type { User } from './user.types';
+import type { Company } from './company.types';
+
+// ==========================================
+// 2. TIPOS GERAIS DE API
+// ==========================================
+
 export interface ApiErrorResponse {
   error?: string;
   message?: string;
+  statusCode?: number;
 }
 
 export interface ApiResponse<T = unknown> {
+  success: boolean;
   message?: string;
-  error?: string;
   data?: T;
 }
 
 // ==========================================
-// 2. ENUMS E AUXILIARES
+// 3. TIPOS DE AUTENTICAÇÃO (Auth)
 // ==========================================
 
-// Os papéis definidos no banco de dados (tabela niveis_acesso -> slug)
-export type UserRole = 'admin' | 'usuario';
-
-
-// Usuário logado ou listado
-export interface User {
-  id: string;
-  empresa_id: string;
-  role: UserRole;
-  nome: string;
-  email: string;
-  telefone?: string;
-  created_at?: string; 
-}
-
-// Empresa (Usado na lista do Super Admin)
-export interface Company {
-  id: string;
-  nome: string;
-  documento: string; // CNPJ/CPF
-  email: string;
-  telefone?: string;
-  status?: string;   // 'ativo' | 'inativo'
-  created_at?: string;
-  
-  // Campo calculado pela query SQL (contagem de funcionários)
-  total_usuarios?: number; 
+/**
+ * Usado para tipagem de formulário de login admin (opcional)
+ */
+export interface AdminLoginForm {
+  masterKey: string;
 }
 
 /**
- * Payload para Login
- * Endpoint: POST /auth/login
+ * Payload enviado no POST /auth/login (Usuário Comum)
  */
 export interface LoginDTO {
   email: string;
   password: string;
 }
 
-// Alias para manter compatibilidade com componentes antigos
-export type LoginCredentials = LoginDTO;
-
 /**
- * Payload para Criar Nova Empresa (Tenant)
- * Endpoint: POST /admin/companies
- * * NOTA: Campos limpos (sem prefixo empresa_) para alinhar com o Backend
+ * Resposta exata do Backend (API) ao logar com sucesso
  */
-export interface CreateCompanyDTO {
-  // --- Dados da Empresa ---
-  nome: string;       
-  documento: string;  
-  email: string;      
-  telefone: string;
-
-  // --- Dados do Admin Inicial ---
-  admin_nome: string;
-  admin_email: string;
-  password: string;       
-  admin_telefone: string;
-}
-
-/**
- * Payload para Criar Usuário
- * Endpoint: POST /admin/users
- */
-export interface CreateUserDTO {
-  empresa_id: string;
-  role: UserRole;
-  nome: string;
-  email: string;
-  password: string;
-  telefone?: string; 
-}
-
 export interface LoginResponse {
   token: string;
-  user: User;
+  usuario: User;      // Dados do usuário logado
+  empresa: Company;   // Dados da empresa a qual ele pertence
 }
 
-export interface MasterLoginForm {
-  masterKey: string;
+/**
+ * Interface para o retorno do Service de Auth no Frontend
+ * IMPORTANTE: É usado no authService.ts para saber para onde redirecionar
+ */
+export interface AuthResult {
+  redirect: string;
+}
+
+/**
+ * Usado apenas no Frontend para tipar a Session do Super Admin
+ */
+export interface SuperAdminSession {
+  isMaster: boolean;
+  timestamp: number;
 }
