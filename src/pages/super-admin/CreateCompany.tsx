@@ -1,154 +1,269 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { superAdminService } from '../../services/superAdminService';
-import type { CreateCompanyDTO, ApiErrorResponse } from '../../types'; 
-import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal'; // Importe a modal
-import { AxiosError } from 'axios';
+import axios from 'axios';
+import { 
+  BuildingOfficeIcon, 
+  UserIcon, 
+  ArrowLeftIcon, 
+  EnvelopeIcon, 
+  PhoneIcon,
+  IdentificationIcon,
+  LockClosedIcon,
+  RocketLaunchIcon
+} from '@heroicons/react/24/outline';
+
+// Services e Utils
+import { companyService } from '../../services/companyService';
+import { masks } from '../../utils/masks';
+import type { CreateCompanyDTO } from '../../types';
+
+// Componentes
+import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
 
 export const CreateCompany = () => {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateCompanyDTO>();
   const navigate = useNavigate();
-
-  // Estado para controlar a Modal
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
+    formState: { errors, isSubmitting } 
+  } = useForm<CreateCompanyDTO>();
+
+  // --- Handlers de Máscara ---
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue('documento', masks.cnpj(e.target.value));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'telefone' | 'admin_telefone') => {
+    setValue(field, masks.phone(e.target.value));
+  };
 
   const onSubmit = async (data: CreateCompanyDTO) => {
     try {
-      await superAdminService.createCompany(data);
-      // Sucesso: Abre a modal
+      await companyService.create(data);
       setShowSuccess(true);
-    } catch (error) {
-      const err = error as AxiosError<ApiErrorResponse>;
-      console.error(err);
-      alert(`Erro: ${err.response?.data?.message || 'Falha ao criar empresa'}`);
+    } catch (error: unknown) {
+      console.error(error);
+      if (axios.isAxiosError(error)) {
+        alert(`Erro: ${error.response?.data?.message || 'Falha ao criar empresa'}`);
+      } else {
+        alert('Ocorreu um erro inesperado.');
+      }
     }
   };
 
   const handleCloseModal = () => {
     setShowSuccess(false);
-    navigate('/admin'); // Redireciona para o Dashboard principal
+    navigate('/companies'); // Redireciona para a lista
   };
 
+  // Helper para renderizar classes de input
+  const inputClass = "block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors";
+  const errorClass = "border-red-500 focus:ring-red-500 focus:border-red-500";
+
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>🏢 Nova Empresa (Tenant)</h2>
-        <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
+    <div className="min-h-screen bg-gray-50 p-6">
+      
+      {/* CABEÇALHO */}
+      <div className="max-w-5xl mx-auto mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+            <BuildingOfficeIcon className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Nova Empresa</h1>
+            <p className="text-sm text-gray-500">Provisionamento de novo Tenant</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-blue-600 transition font-medium text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg shadow-sm"
+        >
+          <ArrowLeftIcon className="h-4 w-4 mr-2" />
           Voltar
         </button>
       </div>
 
-      <div className="card shadow-sm">
-        <div className="card-body p-4">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="row g-4">
+      {/* FORMULÁRIO */}
+      <div className="max-w-5xl mx-auto">
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          
+          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+            
+            {/* COLUNA 1: DADOS DA EMPRESA */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
+                <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
+                Dados Corporativos
+              </h3>
               
-              {/* COLUNA 1: DADOS DA EMPRESA */}
-              <div className="col-md-6 border-end">
-                <h5 className="text-primary mb-3">Dados Corporativos</h5>
-                
-                <div className="mb-3">
-                  <label className="form-label">Nome da Empresa</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Empresa</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
                     {...register('nome', { required: 'Nome é obrigatório' })} 
-                    className={`form-control ${errors.nome ? 'is-invalid' : ''}`}
-                    placeholder="Ex: Padaria Tech Ltda" 
+                    className={`${inputClass} ${errors.nome ? errorClass : ''}`}
+                    placeholder="Ex: Tech Solutions Ltda" 
                   />
-                  {errors.nome && <div className="invalid-feedback">{errors.nome.message}</div>}
                 </div>
+                {errors.nome && <p className="mt-1 text-xs text-red-500">{errors.nome.message}</p>}
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Documento (CNPJ/CPF)</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Documento (CNPJ)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <IdentificationIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
-                    {...register('documento', { required: 'Documento é obrigatório' })} 
-                    className="form-control"
-                    placeholder="Apenas números" 
+                    {...register('documento', { required: 'Documento é obrigatório' })}
+                    onChange={handleDocumentChange}
+                    className={`${inputClass} ${errors.documento ? errorClass : ''}`}
+                    placeholder="00.000.000/0001-00"
+                    maxLength={18}
                   />
                 </div>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">E-mail Corporativo</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail Corporativo</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
                     type="email"
                     {...register('email', { required: true })} 
-                    className="form-control"
+                    className={inputClass}
                     placeholder="contato@empresa.com" 
                   />
                 </div>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Telefone</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
-                    {...register('telefone', { required: true })} 
-                    className="form-control"
+                    {...register('telefone', { required: true })}
+                    onChange={(e) => handlePhoneChange(e, 'telefone')}
+                    className={inputClass}
                     placeholder="(00) 0000-0000" 
+                    maxLength={15}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* COLUNA 2: DADOS DO ADMIN */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
+                <UserIcon className="h-5 w-5 text-gray-400" />
+                Administrador Inicial
+              </h3>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Responsável</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input 
+                    {...register('admin_nome', { required: true })} 
+                    className={inputClass}
+                    placeholder="Nome completo" 
                   />
                 </div>
               </div>
 
-              {/* COLUNA 2: DADOS DO ADMIN INICIAL */}
-              <div className="col-md-6">
-                <h5 className="text-warning mb-3">Admin Inicial (Dono)</h5>
-                
-                <div className="mb-3">
-                  <label className="form-label">Nome do Admin</label>
-                  <input 
-                    {...register('admin_nome', { required: true })} 
-                    className="form-control"
-                    placeholder="Nome completo do responsável" 
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">E-mail de Login</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail de Login</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
                     type="email"
                     {...register('admin_email', { required: true })} 
-                    className="form-control"
+                    className={inputClass}
                     placeholder="admin@empresa.com" 
                   />
                 </div>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Senha Inicial</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Senha Inicial</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <LockClosedIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
                     type="password"
                     {...register('password', { required: true, minLength: 6 })} 
-                    className="form-control"
+                    className={inputClass}
                     placeholder="******" 
                   />
-                  <small className="text-muted">Mínimo 6 caracteres</small>
                 </div>
+                <p className="mt-1 text-xs text-gray-500">Mínimo de 6 caracteres.</p>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Telefone (Celular)</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone (Celular)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input 
-                    {...register('admin_telefone', { required: true })} 
-                    className="form-control" 
+                    {...register('admin_telefone', { required: true })}
+                    onChange={(e) => handlePhoneChange(e, 'admin_telefone')}
+                    className={inputClass}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
                   />
                 </div>
               </div>
             </div>
 
-            <hr className="my-4" />
-            
-            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
-              <button type="submit" className="btn btn-primary px-5" disabled={isSubmitting}>
-                {isSubmitting ? 'Criando...' : '🚀 Provisionar Tenant'}
-              </button>
-            </div>
-          </form>
-        </div>
+          </div>
+
+          {/* FOOTER DO FORM */}
+          <div className="px-8 py-5 bg-gray-50 border-t border-gray-200 flex justify-end">
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-700 transition shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Provisionando...
+                </>
+              ) : (
+                <>
+                  <RocketLaunchIcon className="h-5 w-5" />
+                  Provisionar Tenant
+                </>
+              )}
+            </button>
+          </div>
+
+        </form>
       </div>
 
-      {/* --- INTEGRAÇÃO DA MODAL DE SUCESSO --- */}
       <SuccessModal 
         isOpen={showSuccess}
         onClose={handleCloseModal}
-        title="Empresa Criada!"
-        message="A empresa e o usuário admin foram provisionados com sucesso. O cliente já pode logar."
-        buttonText="Voltar ao Painel"
+        title="Tenant Provisionado!"
+        message="A empresa e o usuário administrador foram criados com sucesso."
+        buttonText="Voltar para Lista"
       />
     </div>
   );

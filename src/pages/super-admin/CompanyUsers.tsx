@@ -1,170 +1,287 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { AxiosError } from 'axios'; 
+import axios from 'axios'; 
+import { 
+  UserPlusIcon, 
+  ArrowLeftIcon, 
+  UsersIcon, 
+  TrashIcon,
+  ShieldCheckIcon,
+  UserIcon
+} from '@heroicons/react/24/outline';
 
-// Services e Types
-import { superAdminService } from '../../services/superAdminService';
-import type { User, CreateUserDTO, ApiErrorResponse } from '../../types';
-
-// Componentes Visuais
+import { userService } from '../../services/userService';
+import { companyService } from '../../services/companyService';
+import { masks } from '../../utils/masks';
+import type { User, CreateUserDTO, Company } from '../../types';
 import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
 
 export const CompanyUsers = () => {
   const { id: empresaId } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
   
-  // Estados de Dados
   const [users, setUsers] = useState<User[]>([]);
+  const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Estados de Modal
   const [showFormModal, setShowFormModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
-  // Formulário (Removido 'errors' pois não estamos usando msg de erro visual nos inputs deste modal simples)
-  const { register, handleSubmit, reset } = useForm<CreateUserDTO>();
+  const { register, handleSubmit, reset, setValue } = useForm<CreateUserDTO>();
 
-  // Lógica de Carregamento (Memoizada com useCallback para usar no useEffect e no reload)
-  const fetchUsers = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!empresaId) return;
     try {
-      // setLoading(true) opcional aqui, dependendo se quer piscar a tela no reload
-      const data = await superAdminService.getUsersByCompany(empresaId);
-      setUsers(data);
+      const [usersData, companyData] = await Promise.all([
+        userService.getByCompanyId(empresaId),
+        companyService.getById(empresaId)
+      ]);
+      
+      setUsers(usersData);
+      setCompany(companyData);
     } catch (error) {
-      console.error('Erro ao carregar usuários', error);
+      console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
   }, [empresaId]);
 
-  // Carregamento Inicial
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]); // Dependência correta agora
+    fetchData();
+  }, [fetchData]);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue('telefone', masks.phone(e.target.value));
+  };
 
   const onAddUser = async (data: CreateUserDTO) => {
     if (!empresaId) return;
     try {
-      await superAdminService.createUser({
+      await userService.create({
         ...data,
-        empresa_id: empresaId
+        empresa_id: empresaId,
+        telefone: data.telefone 
       });
       
-      // 1. Fecha o modal de formulário
       setShowFormModal(false);
-      
-      // 2. Abre o modal de sucesso (Bonito)
       setShowSuccessModal(true);
-      
-      // 3. Limpa e Recarrega
       reset(); 
-      fetchUsers(); 
+      fetchData(); 
       
-    } catch (error) {
-      // Tratamento de Erro Tipado
-      const err = error as AxiosError<ApiErrorResponse>;
-      const msg = err.response?.data?.message || 'Erro desconhecido ao adicionar usuário.';
-      alert(`Erro: ${msg}`);
+    } catch (error: unknown) {
+      console.error(error);
+      if (axios.isAxiosError(error)) {
+        const msg = error.response?.data?.message || 'Erro ao criar usuário.';
+        alert(msg);
+      } else {
+        alert('Erro inesperado ao criar usuário.');
+      }
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (confirm('Tem certeza que deseja remover este usuário?')) {
+      try {
+        await userService.delete(userId);
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } catch (error) {
+        // CORREÇÃO: Uso da variável 'error' para satisfazer o ESLint
+        console.error('Erro ao deletar usuário:', error);
+        alert('Erro ao excluir usuário. Verifique o console.');
+      }
     }
   };
 
   return (
-    <div className="container mt-4">
+    <div className="min-h-screen bg-gray-50 p-6">
+      
       {/* CABEÇALHO */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="mb-1">👥 Gestão de Usuários</h2>
-          <small className="text-muted">Empresa ID: {empresaId}</small>
+          <button 
+            onClick={() => navigate(-1)} 
+            className="flex items-center text-sm text-gray-500 hover:text-blue-600 mb-2 transition"
+          >
+            <ArrowLeftIcon className="h-4 w-4 mr-1" />
+            Voltar para Empresas
+          </button>
+          
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <UsersIcon className="h-8 w-8 text-blue-600" />
+            Gestão de Usuários
+          </h1>
+          <p className="text-gray-500 mt-1">
+            Empresa: <span className="font-semibold text-gray-800">{company?.nome || 'Carregando...'}</span>
+          </p>
         </div>
-        <div>
-          <button className="btn btn-outline-secondary me-2" onClick={() => navigate(-1)}>Voltar</button>
-          <button className="btn btn-success" onClick={() => setShowFormModal(true)}>+ Novo Usuário</button>
-        </div>
+        
+        <button 
+          onClick={() => setShowFormModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-md text-sm font-medium"
+        >
+          <UserPlusIcon className="h-5 w-5" />
+          Novo Usuário
+        </button>
       </div>
 
       {/* LISTAGEM */}
-      {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status"></div>
-          <p className="mt-2 text-muted">Carregando usuários...</p>
-        </div>
-      ) : (
-        <div className="card shadow-sm">
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th className="ps-4">Nome</th>
-                  <th>E-mail</th>
-                  <th>Role</th>
-                  <th>Cadastro</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center p-4 text-muted">Nenhum usuário encontrado nesta empresa.</td></tr>
-                ) : (
-                  users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="fw-bold ps-4">{user.nome}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <span className={`badge ${user.role === 'admin' ? 'bg-warning text-dark' : 'bg-info'}`}>
-                          {user.role}
-                        </span>
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {loading ? (
+            <div className="p-10 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-500">Sincronizando dados...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acesso</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contato</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
+                        Nenhum usuário vinculado a esta empresa.
                       </td>
-                      <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
+                              <UserIcon className="h-5 w-5 text-gray-500" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{user.nome}</div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.role === 'admin' ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                              Admin
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              Usuário
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.telefone || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-900 transition"
+                            title="Remover Usuário"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* --- MODAL DE FORMULÁRIO (Bootstrap Native) --- */}
+      {/* MODAL FORMULÁRIO */}
       {showFormModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow">
-              <div className="modal-header bg-light">
-                <h5 className="modal-title">Adicionar Usuário</h5>
-                <button type="button" className="btn-close" onClick={() => setShowFormModal(false)}></button>
-              </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowFormModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
               <form onSubmit={handleSubmit(onAddUser)}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">Nome Completo</label>
-                    <input {...register('nome', { required: true })} className="form-control" placeholder="Ex: João da Silva" />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">E-mail de Acesso</label>
-                    <input type="email" {...register('email', { required: true })} className="form-control" placeholder="joao@empresa.com" />
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label fw-bold small">Senha Provisória</label>
-                      <input type="password" {...register('password', { required: true })} className="form-control" placeholder="******" />
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <UserPlusIcon className="h-6 w-6 text-green-600" />
                     </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label fw-bold small">Nível de Acesso</label>
-                      <select {...register('role')} className="form-select">
-                        <option value="usuario">Usuário Padrão</option>
-                        <option value="admin">Admin da Empresa</option>
-                      </select>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                        Adicionar Novo Usuário
+                      </h3>
+                      <div className="mt-4 space-y-4">
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
+                          <input 
+                            {...register('nome', { required: true })} 
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                            placeholder="Ex: João da Silva"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">E-mail de Acesso</label>
+                          <input 
+                            type="email"
+                            {...register('email', { required: true })} 
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                            placeholder="joao@empresa.com"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Senha Provisória</label>
+                            <input 
+                              type="password"
+                              {...register('password', { required: true })} 
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                              placeholder="******"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Nível de Acesso</label>
+                            <select 
+                              {...register('role')} 
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            >
+                              <option value="usuario">Usuário Padrão</option>
+                              <option value="admin">Admin da Empresa</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Telefone</label>
+                          <input 
+                            {...register('telefone')}
+                            onChange={handlePhoneChange}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                          />
+                        </div>
+
+                      </div>
                     </div>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">Telefone</label>
-                    <input {...register('telefone')} className="form-control" placeholder="(00) 0000-0000" />
                   </div>
                 </div>
-                <div className="modal-footer bg-light">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowFormModal(false)}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary">Salvar Usuário</button>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button type="submit" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                    Salvar Usuário
+                  </button>
+                  <button type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" onClick={() => setShowFormModal(false)}>
+                    Cancelar
+                  </button>
                 </div>
               </form>
             </div>
@@ -172,14 +289,12 @@ export const CompanyUsers = () => {
         </div>
       )}
 
-      {/* --- MODAL DE SUCESSO (Novo Componente) --- */}
       <SuccessModal 
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        title="Usuário Adicionado!"
-        message="O usuário foi vinculado à empresa com sucesso e já pode realizar login."
-        buttonText="Continuar Gerenciando"
-        autoCloseDuration={4000} // Fecha sozinho em 4s se quiser
+        title="Usuário Criado"
+        message="O usuário foi adicionado com sucesso e já pode acessar o sistema."
+        buttonText="Continuar"
       />
     </div>
   );

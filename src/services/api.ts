@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig, type AxiosRequestHeaders } from 'axios';
 import { authService } from './authService';
 
 const api = axios.create({
@@ -12,20 +12,27 @@ const api = axios.create({
 // 1. INTERCEPTOR DE REQUISIÇÃO (Saída)
 // =================================================================
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('awl_token');
-    const masterKey = import.meta.env.VITE_MASTER_KEY;
-
-    // REGRA 1: Se for rota administrativa, anexa a Master Key
-    // Isso permite criar empresas sem ter um usuário no banco ainda
-    if (config.url?.includes('/admin') && masterKey) {
-      config.headers['x-api-key'] = masterKey; 
+  (config: InternalAxiosRequestConfig) => {
+    // CORREÇÃO: Removemos o 'any' e usamos a tipagem correta do Axios
+    if (!config.headers) {
+      config.headers = {} as AxiosRequestHeaders;
     }
 
-    // REGRA 2: Se tiver token logado, anexa o Bearer Token
-    // Isso serve para autenticar usuários comuns
+    const token = localStorage.getItem('awl_token');
+    const masterKey = import.meta.env.VITE_MASTER_KEY;
+    
+    // Verifica se é uma rota administrativa
+    const isAdminRoute = config.url?.includes('/admin');
+
+    // LÓGICA DE AUTENTICAÇÃO HIERÁRQUICA:
+    
+    // 1. Prioridade Máxima: Se tem usuário logado, usamos o Token.
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+    } 
+    // 2. Fallback de "Bootstrap": Rota admin sem token + Chave Mestra
+    else if (isAdminRoute && masterKey) {
+      config.headers['x-api-key'] = masterKey; 
     }
 
     return config;
@@ -37,26 +44,32 @@ api.interceptors.request.use(
 // 2. INTERCEPTOR DE RESPOSTA (Retorno)
 // =================================================================
 api.interceptors.response.use(
-  (response) => response, // Se der tudo certo (200, 201), só passa
+  (response) => response,
   (error) => {
     
-    // Se o erro for de RESPOSTA (o servidor respondeu algo)
     if (error.response) {
       const { status } = error.response;
 
-      // 401 = Token Expirado ou Inválido
+      // 401: Token Expirado, Inválido ou Ausente
       if (status === 401) {
-        // Evita loop infinito se já estivermos na tela de login
         if (!window.location.pathname.includes('/login')) {
-          console.warn('Sessão expirada. Redirecionando para login...');
-          authService.logout(); // Limpa tudo e manda pro login
+          console.warn('Sessão expirada ou inválida. Redirecionando...');
+          authService.logout(); 
         }
       }
 
-      // 403 = Proibido (Tentou acessar área admin sem ser admin)
+      // 403: Proibido
       if (status === 403) {
-        console.error('Acesso negado: Você não tem permissão para este recurso.');
+        console.error('⛔ Acesso negado: Nível de permissão insuficiente.');
       }
+      
+      // 500: Erro de Servidor
+      if (status >= 500) {
+        console.error('🔥 Erro interno do servidor. Contate o suporte.');
+      }
+    } else {
+      // Erro de conexão
+      console.error('🚨 Erro de conexão: O backend parece estar offline.');
     }
     
     return Promise.reject(error);
