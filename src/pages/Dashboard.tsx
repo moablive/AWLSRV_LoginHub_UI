@@ -1,85 +1,129 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; 
+import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BuildingOfficeIcon, 
   UsersIcon, 
-  PlusIcon, 
+  PlusIcon,
   ArrowRightOnRectangleIcon,
-  MagnifyingGlassIcon,
-  TrashIcon
+  TrashIcon,
+  MagnifyingGlassIcon 
 } from '@heroicons/react/24/outline';
 
-import { companyService } from '../services/companyService'; 
+import { companyService } from '../services/companyService';
 import { authService } from '../services/authService';
-import { LogoutModal } from '../components/shared/LogoutModal/LogoutModal';
-import type { Company } from '../types'; 
+import { masks } from '../utils/masks';
+import type { Company } from '../types';
 
-export function Dashboard() {
+// Componentes Shared
+import { LogoutModal } from '../components/shared/LogoutModal/LogoutModal';
+import { DeleteModal } from '../components/shared/DeleteModal/DeleteModal';
+import { StatusButton } from '../components/shared/StatusButton';
+
+export const Dashboard = () => {
   const navigate = useNavigate();
   
+  // Estados
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modais e Ações
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  
+  // Estado para controlar qual empresa será deletada
+  const [companyToDelete, setCompanyToDelete] = useState<{ id: string, nome: string } | null>(null);
 
+  // Busca dados iniciais
   useEffect(() => {
-    loadCompanies();
+    const fetchCompanies = async () => {
+      try {
+        const data = await companyService.getAll();
+        setCompanies(data);
+      } catch (error) {
+        console.error('Erro ao buscar empresas', error);
+      }
+    };
+
+    fetchCompanies();
   }, []);
 
-  const loadCompanies = async () => {
+  // Filtro
+  const filteredCompanies = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return companies.filter(c => 
+      c.nome.toLowerCase().includes(term) || 
+      c.email.toLowerCase().includes(term) ||
+      c.documento.includes(term)
+    );
+  }, [companies, searchTerm]);
+
+  // --- AÇÕES ---
+
+  const handleLogout = () => {
+    authService.logout();
+  };
+
+  // --- Lógica de Exclusão ---
+  const handleDeleteClick = (company: Company) => {
+    setCompanyToDelete({ id: company.id, nome: company.nome });
+  };
+
+  const confirmDelete = async () => {
+    if (!companyToDelete) return;
+
     try {
-      setIsLoading(true);
-      const data = await companyService.getAll(); 
-      setCompanies(data);
+      setLoadingAction(companyToDelete.id);
+      await companyService.delete(companyToDelete.id);
+      
+      setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
+      setCompanyToDelete(null);
     } catch (error) {
       console.error(error);
+      alert('Erro ao excluir empresa.');
     } finally {
-      setIsLoading(false);
+      setLoadingAction(null);
     }
   };
 
-  const handleDeleteCompany = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta empresa? Esta ação não pode ser desfeita.')) {
-        try {
-            await companyService.delete(id);
-            setCompanies(prev => prev.filter(c => c.id !== id));
-        } catch (error) {
-            // CORREÇÃO: Usamos o 'error' no console para o linter não reclamar
-            console.error('Falha no delete:', error);
-            alert('Erro ao excluir empresa.');
-        }
+  // --- Lógica de Status ---
+  const handleStatusChange = async (company: Company) => {
+    const novoStatus = company.status === 'ativo' ? 'inativo' : 'ativo';
+
+    try {
+      await companyService.toggleStatus(company.id, novoStatus);
+
+      setCompanies(prev => prev.map(c => 
+        c.id === company.id ? { ...c, status: novoStatus } : c
+      ));
+
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao atualizar status.');
     }
   };
 
-  const filteredCompanies = companies.filter(company => 
-    company.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.documento.includes(searchTerm)
-  );
+  const activeCompanies = companies.filter(c => c.status === 'ativo').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="space-y-8 animate-fade-in pb-20">
       
-      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
-            LoginHub <span className="text-gray-400 font-light text-xl">| Manager</span>
-          </h1>
-          <p className="text-gray-500 mt-1">Gestão Centralizada de Tenants e Infraestrutura</p>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">LoginHub <span className="text-blue-600">Manager</span></h1>
+          <p className="text-lg text-gray-500 mt-1">Gestão Centralizada de Tenants e Infraestrutura</p>
         </div>
-        
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex gap-3">
           <button 
             onClick={() => setShowLogoutModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition shadow-sm text-sm font-medium"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl hover:bg-red-50 hover:border-red-300 transition font-medium shadow-sm"
           >
-            <ArrowRightOnRectangleIcon className="h-5 w-5 text-red-500" />
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
             Sair
           </button>
-
           <button 
-            onClick={() => navigate('/companies/new')} 
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md text-sm font-medium"
+            onClick={() => navigate('/companies/new')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium shadow-lg shadow-blue-500/30"
           >
             <PlusIcon className="h-5 w-5" />
             Nova Empresa
@@ -87,142 +131,172 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
-            <div className="p-3 rounded-full bg-blue-50 text-blue-600 mr-4">
-              <BuildingOfficeIcon className="h-8 w-8" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Empresas Ativas</p>
-              <h3 className="text-2xl font-bold text-gray-900">{companies.length}</h3>
-            </div>
+      {/* CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5 transition hover:shadow-md">
+          <div className="p-4 bg-blue-50 rounded-xl">
+            <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
           </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
-            <div className="p-3 rounded-full bg-purple-50 text-purple-600 mr-4">
-              <UsersIcon className="h-8 w-8" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Usuários Totais</p>
-              <h3 className="text-2xl font-bold text-gray-900">-</h3> 
-            </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Empresas Ativas</p>
+            <p className="text-3xl font-bold text-gray-900">{activeCompanies}</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          
-          <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-800">Tenants Cadastrados</h3>
-            <div className="relative max-w-xs w-full">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Buscar por nome ou CNPJ..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5 transition hover:shadow-md">
+          <div className="p-4 bg-purple-50 rounded-xl">
+            <UsersIcon className="h-8 w-8 text-purple-600" />
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Empresa
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Documento
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Data Cadastro
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                      Carregando dados...
-                    </td>
-                  </tr>
-                ) : filteredCompanies.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
-                      Nenhuma empresa encontrada.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredCompanies.map((company) => (
-                    <tr key={company.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                            <BuildingOfficeIcon className="h-6 w-6 text-gray-500" />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{company.nome}</div>
-                            <div className="text-sm text-gray-500">{company.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{company.documento}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          company.status === 'ativo' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {company.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {company.data_cadastro ? new Date(company.data_cadastro).toLocaleDateString() : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          onClick={() => navigate(`/admin/companies/${company.id}/users`)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                          title="Gerenciar Usuários"
-                        >
-                          <UsersIcon className="h-5 w-5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteCompany(company.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Excluir Empresa"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div>
+            <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Cadastrado</p>
+            <p className="text-3xl font-bold text-gray-900">{companies.length}</p> 
           </div>
         </div>
       </div>
 
+      {/* TABELA */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        
+        {/* Toolbar */}
+        <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            Tenants Cadastrados
+            <span className="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">{filteredCompanies.length}</span>
+          </h2>
+          
+          <div className="relative w-full sm:w-80">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input 
+              type="text" 
+              placeholder="Buscar por nome, email ou CNPJ..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Documento</th>
+                
+                {/* ✅ COLUNA NOVA: Usuários */}
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Usuários</th>
+                
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cadastro</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredCompanies.length === 0 ? (
+                <tr>
+                  {/* Ajustado colSpan para 6 por causa da nova coluna */}
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <MagnifyingGlassIcon className="h-12 w-12 text-gray-300 mb-2" />
+                      <p className="text-lg font-medium">Nenhum resultado encontrado.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredCompanies.map((company) => (
+                  <tr key={company.id} className="hover:bg-gray-50 transition duration-150 group">
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                          {company.nome.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-base font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                            {company.nome}
+                          </div>
+                          <div className="text-sm text-gray-500">{company.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-600 font-mono">
+                      {masks.cnpj(company.documento)}
+                    </td>
+
+                    {/* ✅ CONTEÚDO NOVO: Contador de Usuários */}
+                    <td className="px-6 py-5 whitespace-nowrap text-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        (company.total_usuarios || 0) > 0 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        <UsersIcon className="h-3 w-3 mr-1" />
+                        {company.total_usuarios || 0}
+                      </span>
+                    </td>
+                    
+                    <td className="px-6 py-5 whitespace-nowrap text-center flex justify-center">
+                      <StatusButton 
+                        currentStatus={company.status as 'ativo' | 'inativo'}
+                        entityName={company.nome}
+                        onStatusChange={() => handleStatusChange(company)}
+                      />
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
+                      {company.data_cadastro ? (
+                        new Date(company.data_cadastro).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => navigate(`/admin/companies/${company.id}/users`)}
+                          className="px-3 py-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition font-semibold text-xs border border-blue-100"
+                        >
+                          Usuários
+                        </button>
+
+                        <button 
+                          onClick={() => handleDeleteClick(company)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-100"
+                          title="Excluir Empresa"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <LogoutModal 
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={() => authService.logout()}
+        isOpen={showLogoutModal} 
+        onClose={() => setShowLogoutModal(false)} 
+        onConfirm={handleLogout} 
       />
-      
+
+      <DeleteModal
+        isOpen={!!companyToDelete}
+        onClose={() => setCompanyToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Excluir Empresa"
+        itemName={companyToDelete?.nome}
+        isLoading={loadingAction === companyToDelete?.id}
+      />
+
     </div>
   );
-}
+};

@@ -1,5 +1,5 @@
 import api from './api';
-import type { Company, CreateCompanyDTO, UpdateCompanyDTO } from '../types';
+import type { Company, CreateCompanyDTO, CreateCompanyResponse, UpdateCompanyDTO } from '../types';
 
 const BASE_URL = '/admin/companies';
 
@@ -14,8 +14,8 @@ export const companyService = {
     return data;
   },
 
-  create: async (payload: CreateCompanyDTO): Promise<Company> => {
-    const { data } = await api.post<Company>(BASE_URL, payload);
+  create: async (payload: CreateCompanyDTO): Promise<CreateCompanyResponse> => {
+    const { data } = await api.post<CreateCompanyResponse>(BASE_URL, payload);
     return data;
   },
 
@@ -24,8 +24,12 @@ export const companyService = {
     return data;
   },
 
-  toggleStatus: async (id: string, status: 'ativo' | 'inativo'): Promise<void> => {
-    await api.patch(`${BASE_URL}/${id}/status`, { status });
+  toggleStatus: async (id: string, status: 'ativo' | 'inativo'): Promise<Company> => {
+    const { data } = await api.patch<{ message: string; empresa: Company }>(
+      `${BASE_URL}/${id}/status`,
+      { status }
+    );
+    return data.empresa;
   },
 
   delete: async (id: string): Promise<void> => {

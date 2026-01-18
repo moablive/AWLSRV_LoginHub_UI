@@ -1,11 +1,12 @@
 export interface Company {
   id: string;
   nome: string;
-  documento: string; // CNPJ ou CPF
-  email: string;     // E-mail de contato da empresa
+  documento: string;
+  email: string;
   telefone?: string;
-  status: 'ativo' | 'inativo'; // Union type é melhor que string solta
-  data_cadastro?: string;
+  status: 'ativo' | 'inativo';
+  data_cadastro?: string | Date; 
+  total_usuarios?: number;
 }
 
 // Payload para criar empresa (Combina Empresa + Admin Inicial)
@@ -30,4 +31,14 @@ export interface UpdateCompanyDTO {
   telefone?: string;
   documento?: string;
   status?: 'ativo' | 'inativo';
+}
+
+
+export interface CreateCompanyResponse {
+  empresaId: string;
+  nome: string;
+  documento: string;
+  email: string;
+  adminEmail: string;
+  message: string;
 }

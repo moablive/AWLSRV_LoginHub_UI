@@ -1,44 +1,30 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 
-// --- IMPORTAÇÃO DAS PÁGINAS ---
+// Services
+import { authService } from '../services/authService';
+
+// Layout (Sidebar + Container Principal)
+import { AdminLayout } from '../layouts/AdminLayout';
+
+// Páginas
 import { Login } from '../pages/Login'; 
 import { Dashboard } from '../pages/Dashboard';
-
-// Novos componentes administrativos
-import { CreateCompany } from '../pages/super-admin/CreateCompany';
-import { CompanyUsers } from '../pages/super-admin/CompanyUsers';
+import { CreateCompany } from '../pages/Companies/CreateCompany'; // Ajustado path conforme passos anteriores
+import { CompanyUsers } from '../pages/CompanyUsers/CompanyUsers'; // Ajustado path
 
 // ============================================================================
-// 1. COMPONENTES DE PROTEÇÃO (GUARDS)
+// 1. GUARDS (Proteção de Rotas)
 // ============================================================================
 
 /**
- * Proteção Nível 1: Autenticação Básica
- * Verifica se o usuário tem token e dados salvos.
+ * Verifica se está autenticado (seja via Token OU via Master Key)
  */
 function ProtectedRoute() {
-  const token = localStorage.getItem('awl_token');
-  const user = localStorage.getItem('awl_user');
+  const isAuth = authService.isAuthenticated();
 
-  if (!token || !user) {
-    // Limpeza de segurança
-    localStorage.removeItem('awl_token');
-    localStorage.removeItem('awl_user');
-    return <Navigate to="/" replace />;
-  }
-
-  return <Outlet />;
-}
-
-/**
- * Proteção Nível 2: Acesso Super Admin (Master)
- * Verifica a flag de sessão específica do painel master.
- */
-function SuperAdminRoute() {
-  const isMaster = sessionStorage.getItem('is_super_admin');
-
-  if (isMaster !== 'true') {
-    return <Navigate to="/" replace />; // Ou para uma página de "Acesso Negado"
+  if (!isAuth) {
+    // Redireciona para login se não tiver permissão
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;
@@ -51,36 +37,36 @@ function SuperAdminRoute() {
 export function AppRoutes() {
   return (
     <Routes>
-      {/* --- ROTA PÚBLICA --- */}
-      <Route path="/" element={<Login />} />
+      {/* --- ROTAS PÚBLICAS --- */}
       <Route path="/login" element={<Login />} />
+      
+      {/* Redirecionamento da raiz */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* --- ROTAS PROTEGIDAS --- */}
-      {/* Camada 1: O usuário precisa estar logado */}
+      {/* --- ÁREA ADMINISTRATIVA (PROTEGIDA) --- */}
       <Route element={<ProtectedRoute />}>
         
-        {/* Camada 2: O usuário precisa ser Master (Super Admin) */}
-        <Route element={<SuperAdminRoute />}>
+        {/* Envolvemos as páginas no Layout para mostrar a Sidebar */}
+        <Route element={<AdminLayout />}>
           
-          {/* Dashboard Principal (Lista de Empresas) */}
-          <Route path="/admin" element={<Dashboard />} />
+          {/* Dashboard (Lista de Empresas) */}
+          <Route path="/dashboard" element={<Dashboard />} />
           
-          {/* Criar Nova Empresa */}
-          <Route path="/admin/companies/new" element={<CreateCompany />} />
+          {/* Truque: Se o login mandar para /companies, joga para o dashboard */}
+          <Route path="/companies" element={<Navigate to="/dashboard" replace />} />
           
-          {/* Gerenciar Usuários da Empresa (Dynamic Route com ID) */}
+          {/* Cadastro de Nova Empresa */}
+          <Route path="/companies/new" element={<CreateCompany />} />
+          
+          {/* Gerenciamento de Usuários (Rota dinâmica) */}
           <Route path="/admin/companies/:id/users" element={<CompanyUsers />} />
-          
-        </Route>
 
-        {/* Futura Área do Usuário Comum (Tenant)
-           <Route path="/home" element={<HomeUsuario />} />
-        */}
+        </Route>
 
       </Route>
 
-      {/* Rota de Fallback (Qualquer endereço errado volta para o login) */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Rota 404 (Fallback) */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

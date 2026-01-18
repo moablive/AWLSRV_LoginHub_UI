@@ -7,17 +7,17 @@ export const authService = {
    */
   login: async (email: string, password: string): Promise<AuthResult> => {
     
-    // 1. Verificação Super Admin (Master Key)
+    // 1. VERIFICAÇÃO SUPER ADMIN (Local via .env)
     const masterKey = import.meta.env.VITE_MASTER_KEY;
 
     if (masterKey && password === masterKey) {
       sessionStorage.setItem('is_super_admin', 'true');
-      localStorage.removeItem('awl_token'); // Remove token para ativar x-api-key no interceptor
+      localStorage.removeItem('awl_token'); // Garante que não use token antigo
 
       const adminUser: User = { 
         id: 'master-root', 
         nome: 'Super Administrator', 
-        email, 
+        email: email || 'root@system.local', 
         role: 'master', 
         empresa_id: null 
       };
@@ -26,9 +26,20 @@ export const authService = {
       return { redirect: '/companies' }; 
     }
 
-    // 2. Login Padrão (API)
-    const { data } = await api.post<LoginResponse>('/auth/login', { email, password });
+    // 2. TRAVA DE SEGURANÇA
+    // Se tentou usar o login de master (email placeholder ou vazio) e a senha falhou acima,
+    // bloqueia para não enviar lixo ao backend.
+    if (!email || email === 'master@infra.local') {
+        throw new Error('Acesso Negado: Chave Mestra incorreta ou não configurada.');
+    }
+
+    // 3. LOGIN USUÁRIO COMUM (Via API Backend)
+    const { data } = await api.post<LoginResponse>('/auth/login', { 
+      email, 
+      password 
+    });
     
+    // Sucesso: Salva os dados retornados
     localStorage.setItem('awl_token', data.token);
     localStorage.setItem('awl_user', JSON.stringify(data.usuario));
     

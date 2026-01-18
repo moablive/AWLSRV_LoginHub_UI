@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from 'axios'; 
 import { 
   LockClosedIcon, 
   UserIcon, 
@@ -9,6 +9,7 @@ import {
   EyeSlashIcon, 
   ShieldCheckIcon 
 } from '@heroicons/react/24/outline'; 
+// 
 
 import { authService } from '../services/authService';
 import type { LoginDTO } from '../types';
@@ -17,39 +18,43 @@ export function Login() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  // 1. Removemos a validação rígida do formulário aqui
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginDTO>();
 
   const onSubmit = async (data: LoginDTO): Promise<void> => {
     setLoginError(null);
     try {
-      const result = await authService.login(data.email, data.password);
+      // 2. Lógica Inteligente:
+      // Se o e-mail estiver vazio, assumimos que é um login via Master Key.
+      // Passamos um e-mail placeholder para satisfazer a assinatura do método,
+      // pois o authService verifica a SENHA (Master Key) antes do e-mail.
+      const emailToSend = data.email || 'master@infra.local';
+
+      const result = await authService.login(emailToSend, data.password);
       navigate(result.redirect);
       
-    } catch (error: unknown) { // CORREÇÃO: Usamos 'unknown' em vez de 'any'
+    } catch (error: unknown) {
       console.error(error);
 
-      // TYPE GUARD: Verificamos se o erro é do Axios
       if (axios.isAxiosError(error)) {
-        // Agora o TypeScript sabe que 'error' tem propriedades de rede
         if (error.response?.status === 401) {
-          setLoginError('Credenciais inválidas. Verifique e tente novamente.');
+          setLoginError('Credenciais inválidas. Verifique a chave ou senha.');
         } else if (error.code === 'ERR_NETWORK') {
           setLoginError('Erro de conexão com o servidor.');
         } else {
           setLoginError(`Erro: ${error.message || 'Falha na requisição'}`);
         }
       } else if (error instanceof Error) {
-        // Erros genéricos de JavaScript (ex: erro de lógica)
         setLoginError(error.message);
       } else {
-        // Fallback final
         setLoginError('Ocorreu um erro inesperado. Tente novamente.');
       }
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-200">
         
         {/* CABEÇALHO */}
@@ -61,7 +66,7 @@ export function Login() {
             LoginHub
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Acesso ao Painel Administrativo
+            Infraestrutura & Gestão de Tenants
           </p>
         </div>
 
@@ -69,7 +74,7 @@ export function Login() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="rounded-md shadow-sm -space-y-px">
             
-            {/* INPUT EMAIL */}
+            {/* INPUT EMAIL (OPCIONAL) */}
             <div className="relative mb-4">
               <label htmlFor="email" className="sr-only">E-mail</label>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -79,10 +84,10 @@ export function Login() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                required
+                // 3. Removemos o atributo HTML 'required' e ajustamos o register
                 className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="E-mail corporativo"
-                {...register('email', { required: true })}
+                placeholder="E-mail (Opcional para Master Key)"
+                {...register('email', { required: false })} 
               />
             </div>
 
@@ -120,7 +125,7 @@ export function Login() {
             <div className="rounded-md bg-red-50 p-4 border border-red-200">
               <div className="flex">
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Falha na autenticação</h3>
+                  <h3 className="text-sm font-medium text-red-800">Acesso Negado</h3>
                   <div className="mt-2 text-sm text-red-700">
                     <p>{loginError}</p>
                   </div>
@@ -134,7 +139,7 @@ export function Login() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-all"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-all shadow-sm"
             >
               {isSubmitting ? (
                 <span className="flex items-center">
@@ -145,14 +150,14 @@ export function Login() {
                   Validando...
                 </span>
               ) : (
-                'Entrar'
+                'Acessar Painel'
               )}
             </button>
           </div>
         </form>
 
-        <p className="text-center text-xs text-gray-500 mt-4">
-          &copy; 2026 LoginHub Infrastructure. Todos os direitos reservados.
+        <p className="text-center text-xs text-gray-400 mt-4">
+          &copy; 2026 LoginHub Infrastructure. Acesso restrito.
         </p>
       </div>
     </div>

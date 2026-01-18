@@ -12,19 +12,28 @@ import {
   LockClosedIcon,
   RocketLaunchIcon
 } from '@heroicons/react/24/outline';
-
-// Services e Utils
 import { companyService } from '../../services/companyService';
 import { masks } from '../../utils/masks';
 import type { CreateCompanyDTO } from '../../types';
-
-// Componentes
 import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
+import { AlertModal } from '../../components/shared/AlertModal/AlertModal';
 
 export const CreateCompany = () => {
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
   
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'error'
+  });
+
   const { 
     register, 
     handleSubmit, 
@@ -32,7 +41,14 @@ export const CreateCompany = () => {
     formState: { errors, isSubmitting } 
   } = useForm<CreateCompanyDTO>();
 
-  // --- Handlers de Máscara ---
+  const showAlert = (title: string, message: string, variant: 'error' | 'warning' = 'error') => {
+    setAlertState({ isOpen: true, title, message, variant });
+  };
+
+  const closeAlert = () => {
+    setAlertState(prev => ({ ...prev, isOpen: false }));
+  };
+
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue('documento', masks.cnpj(e.target.value));
   };
@@ -47,27 +63,27 @@ export const CreateCompany = () => {
       setShowSuccess(true);
     } catch (error: unknown) {
       console.error(error);
+      
       if (axios.isAxiosError(error)) {
-        alert(`Erro: ${error.response?.data?.message || 'Falha ao criar empresa'}`);
+        const msg = error.response?.data?.message || 'Falha ao criar empresa';
+        showAlert('Erro no Provisionamento', msg, 'error');
       } else {
-        alert('Ocorreu um erro inesperado.');
+        showAlert('Erro Inesperado', 'Ocorreu um erro interno. Tente novamente.', 'error');
       }
     }
   };
 
-  const handleCloseModal = () => {
+  const handleCloseSuccess = () => {
     setShowSuccess(false);
-    navigate('/companies'); // Redireciona para a lista
+    navigate('/companies');
   };
 
-  // Helper para renderizar classes de input
   const inputClass = "block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors";
   const errorClass = "border-red-500 focus:ring-red-500 focus:border-red-500";
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 animate-fade-in">
       
-      {/* CABEÇALHO */}
       <div className="max-w-5xl mx-auto mb-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
@@ -87,13 +103,11 @@ export const CreateCompany = () => {
         </button>
       </div>
 
-      {/* FORMULÁRIO */}
       <div className="max-w-5xl mx-auto">
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
           
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
             
-            {/* COLUNA 1: DADOS DA EMPRESA */}
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
                 <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
@@ -163,7 +177,6 @@ export const CreateCompany = () => {
               </div>
             </div>
 
-            {/* COLUNA 2: DADOS DO ADMIN */}
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
                 <UserIcon className="h-5 w-5 text-gray-400" />
@@ -234,7 +247,6 @@ export const CreateCompany = () => {
 
           </div>
 
-          {/* FOOTER DO FORM */}
           <div className="px-8 py-5 bg-gray-50 border-t border-gray-200 flex justify-end">
             <button 
               type="submit" 
@@ -260,10 +272,18 @@ export const CreateCompany = () => {
 
       <SuccessModal 
         isOpen={showSuccess}
-        onClose={handleCloseModal}
+        onClose={handleCloseSuccess}
         title="Tenant Provisionado!"
         message="A empresa e o usuário administrador foram criados com sucesso."
         buttonText="Voltar para Lista"
+      />
+
+      <AlertModal 
+        isOpen={alertState.isOpen}
+        onClose={closeAlert}
+        title={alertState.title}
+        message={alertState.message}
+        variant={alertState.variant}
       />
     </div>
   );
