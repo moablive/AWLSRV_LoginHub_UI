@@ -18,7 +18,7 @@ import type { User, Company } from '../../types';
 import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
 import { DeleteModal } from '../../components/shared/DeleteModal/DeleteModal';
 import { CreateUserModal } from '../../components/shared/CreateUserModal/CreateUserModal';
-import { AlertModal } from '../../components/shared/AlertModal/AlertModal'; // ✅ IMPORTADO
+import { AlertModal } from '../../components/shared/AlertModal/AlertModal';
 
 export const CompanyUsers = () => {
   const { id: empresaId } = useParams<{ id: string }>(); 
