@@ -1,3 +1,5 @@
+// src/types/auth.types.ts
+
 // O User logado pode ter campos a mais ou a menos que o User da listagem, 
 // mas geralmente tentamos manter iguais.
 export interface User {

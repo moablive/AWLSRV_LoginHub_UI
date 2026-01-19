@@ -12,11 +12,11 @@ import {
   LockClosedIcon,
   RocketLaunchIcon
 } from '@heroicons/react/24/outline';
-import { companyService } from '../../services/companyService';
-import { masks } from '../../utils/masks';
-import type { CreateCompanyDTO } from '../../types';
-import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
-import { AlertModal } from '../../components/shared/AlertModal/AlertModal';
+import { companyService } from '../services/companyService';
+import { masks } from '../utils/masks';
+import type { CreateCompanyDTO } from '../types';
+import { SuccessModal } from '../components/shared/SuccessModal/SuccessModal';
+import { AlertModal } from '../components/shared/AlertModal/AlertModal';
 
 export const CreateCompany = () => {
   const navigate = useNavigate();

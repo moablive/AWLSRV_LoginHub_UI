@@ -7,18 +7,20 @@ import {
   UsersIcon, 
   TrashIcon,
   ShieldCheckIcon,
-  UserIcon
+  UserIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline';
 
-import { userService } from '../../services/userService';
-import { companyService } from '../../services/companyService';
-import type { User, Company } from '../../types';
+import { userService } from '../services/userService';
+import { companyService } from '../services/companyService';
+import type { User } from '../types/user.types';
+import type { Company } from '../types/company.types';
 
-// Modais
-import { SuccessModal } from '../../components/shared/SuccessModal/SuccessModal';
-import { DeleteModal } from '../../components/shared/DeleteModal/DeleteModal';
-import { CreateUserModal } from '../../components/shared/CreateUserModal/CreateUserModal';
-import { AlertModal } from '../../components/shared/AlertModal/AlertModal';
+import { SuccessModal } from '../components/shared/SuccessModal/SuccessModal';
+import { DeleteModal } from '../components/shared/DeleteModal/DeleteModal';
+import { CreateUserModal } from '../components/shared/CreateUserModal/CreateUserModal';
+import { AlertModal } from '../components/shared/AlertModal/AlertModal';
+import { EditUserModal } from '../components/shared/EditModals/EditUserModal';
 
 export const CompanyUsers = () => {
   const { id: empresaId } = useParams<{ id: string }>(); 
@@ -33,11 +35,12 @@ export const CompanyUsers = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
-  // Estados de Exclusão
+  // Estados de Ação
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ESTADO DO ALERTA
+  // Estado de Alerta
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
     title: string;
@@ -50,8 +53,7 @@ export const CompanyUsers = () => {
     variant: 'error'
   });
 
-  // --- Helpers de Alerta ---
-  const showAlert = (title: string, message: string, variant: 'error' | 'warning' = 'error') => {
+  const showAlert = (title: string, message: string, variant: 'error' | 'warning' | 'info' = 'error') => {
     setAlertState({ isOpen: true, title, message, variant });
   };
 
@@ -71,8 +73,7 @@ export const CompanyUsers = () => {
       setUsers(usersData);
       setCompany(companyData);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      // ✅ Agora mostramos erro se falhar o carregamento
+      console.error(error);
       showAlert('Erro de Conexão', 'Não foi possível carregar os dados da empresa.', 'error');
     } finally {
       setLoading(false);
@@ -97,11 +98,11 @@ export const CompanyUsers = () => {
       
       setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
       setUserToDelete(null);
+      showAlert('Sucesso', 'Usuário removido com sucesso.', 'info');
       
     } catch (error: unknown) {
-      console.error('Erro ao deletar usuário:', error);
+      console.error(error);
       
-      // ✅ SUBSTITUÍDO: alert() pelo showAlert()
       if (axios.isAxiosError(error)) {
         const msg = error.response?.data?.message || 'Não foi possível excluir o usuário.';
         showAlert('Erro ao Excluir', msg, 'error');
@@ -117,7 +118,7 @@ export const CompanyUsers = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6 animate-fade-in pb-20">
       
-      {/* CABEÇALHO */}
+      {/* HEADER */}
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <button 
@@ -207,13 +208,23 @@ export const CompanyUsers = () => {
                           {user.telefone || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button 
-                            onClick={() => handleDeleteClick(user)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Remover Usuário"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => setUserToEdit(user)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                              title="Editar Usuário"
+                            >
+                              <PencilSquareIcon className="h-5 w-5" />
+                            </button>
+
+                            <button 
+                              onClick={() => handleDeleteClick(user)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                              title="Remover Usuário"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -225,6 +236,7 @@ export const CompanyUsers = () => {
         </div>
       </div>
 
+      {/* MODAL DE CRIAÇÃO */}
       <CreateUserModal
         isOpen={showFormModal}
         onClose={() => setShowFormModal(false)}
@@ -235,6 +247,18 @@ export const CompanyUsers = () => {
         companyId={empresaId || ''}
       />
 
+      {/* MODAL DE EDIÇÃO */}
+      <EditUserModal
+        isOpen={!!userToEdit}
+        onClose={() => setUserToEdit(null)}
+        user={userToEdit}
+        onSuccess={() => {
+          fetchData();
+          showAlert('Sucesso', 'Dados do usuário atualizados com sucesso.', 'info');
+        }}
+      />
+
+      {/* MODAL DE SUCESSO (Criação) */}
       <SuccessModal 
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
@@ -243,6 +267,7 @@ export const CompanyUsers = () => {
         buttonText="Continuar"
       />
 
+      {/* MODAL DE DELETE */}
       <DeleteModal 
         isOpen={!!userToDelete}
         onClose={() => setUserToDelete(null)}
@@ -252,7 +277,7 @@ export const CompanyUsers = () => {
         isLoading={isDeleting}
       />
 
-      {/* MODAL DE ALERTA */}
+      {/* MODAL DE ALERTAS GERAIS */}
       <AlertModal 
         isOpen={alertState.isOpen}
         onClose={closeAlert}

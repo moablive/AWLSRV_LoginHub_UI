@@ -1,3 +1,6 @@
+// src/types/company.types.ts
+
+// 1. Interface base da Empresa (Listagem/GET)
 export interface Company {
   id: string;
   nome: string;
@@ -9,7 +12,7 @@ export interface Company {
   total_usuarios?: number;
 }
 
-// Payload para criar empresa (Combina Empresa + Admin Inicial)
+// 2. Payload para CRIAR empresa (POST)
 export interface CreateCompanyDTO {
   // Dados da Empresa
   nome: string;
@@ -24,16 +27,15 @@ export interface CreateCompanyDTO {
   admin_telefone?: string;
 }
 
-// Payload para editar apenas dados da empresa
+// 3. Payload para EDITAR empresa (PUT)
 export interface UpdateCompanyDTO {
-  nome?: string;
-  email?: string;
-  telefone?: string;
-  documento?: string;
-  status?: 'ativo' | 'inativo';
+  nome: string;      // Obrigatório para o SQL
+  email: string;     // Obrigatório para o SQL
+  documento: string; // Obrigatório para o SQL
+  telefone?: string; // Opcional
 }
 
-
+// 4. Resposta de sucesso na criação
 export interface CreateCompanyResponse {
   empresaId: string;
   nome: string;

@@ -6,18 +6,20 @@ import {
   PlusIcon,
   ArrowRightOnRectangleIcon,
   TrashIcon,
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon,
+  PencilSquareIcon 
 } from '@heroicons/react/24/outline';
 
 import { companyService } from '../services/companyService';
 import { authService } from '../services/authService';
 import { masks } from '../utils/masks';
-import type { Company } from '../types';
+import type { Company } from '../types/company.types';
 
 // Componentes Shared
 import { LogoutModal } from '../components/shared/LogoutModal/LogoutModal';
 import { DeleteModal } from '../components/shared/DeleteModal/DeleteModal';
 import { StatusButton } from '../components/shared/StatusButton';
+import { EditCompanyModal } from '../components/shared/EditModals/EditCompanyModal'; 
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,28 +28,29 @@ export const Dashboard = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Modais e Ações
+  // Estados de Modais e Ações
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   
-  // Estado para controlar qual empresa será deletada
   const [companyToDelete, setCompanyToDelete] = useState<{ id: string, nome: string } | null>(null);
+  const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
 
   // Busca dados iniciais
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const data = await companyService.getAll();
-        setCompanies(data);
-      } catch (error) {
-        console.error('Erro ao buscar empresas', error);
-      }
-    };
+  const fetchCompanies = async () => {
+    try {
+      const data = await companyService.getAll();
+      setCompanies(data);
+    } catch (error) {
+      console.error('Erro ao buscar empresas', error);
+      // Aqui você poderia adicionar um Toast de erro
+    }
+  };
 
+  useEffect(() => {
     fetchCompanies();
   }, []);
 
-  // Filtro
+  // Filtro (Memoizado para performance)
   const filteredCompanies = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return companies.filter(c => 
@@ -75,6 +78,7 @@ export const Dashboard = () => {
       setLoadingAction(companyToDelete.id);
       await companyService.delete(companyToDelete.id);
       
+      // Atualiza lista localmente para evitar refetch desnecessário
       setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
       setCompanyToDelete(null);
     } catch (error) {
@@ -87,6 +91,7 @@ export const Dashboard = () => {
 
   // --- Lógica de Status ---
   const handleStatusChange = async (company: Company) => {
+    // Optimistic UI: Calcula o novo status antes de enviar
     const novoStatus = company.status === 'ativo' ? 'inativo' : 'ativo';
 
     try {
@@ -184,10 +189,7 @@ export const Dashboard = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Documento</th>
-                
-                {/* ✅ COLUNA NOVA: Usuários */}
                 <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Usuários</th>
-                
                 <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cadastro</th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
@@ -196,7 +198,6 @@ export const Dashboard = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredCompanies.length === 0 ? (
                 <tr>
-                  {/* Ajustado colSpan para 6 por causa da nova coluna */}
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center">
                       <MagnifyingGlassIcon className="h-12 w-12 text-gray-300 mb-2" />
@@ -224,7 +225,6 @@ export const Dashboard = () => {
                       {masks.cnpj(company.documento)}
                     </td>
 
-                    {/* ✅ CONTEÚDO NOVO: Contador de Usuários */}
                     <td className="px-6 py-5 whitespace-nowrap text-center">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         (company.total_usuarios || 0) > 0 
@@ -258,11 +258,20 @@ export const Dashboard = () => {
 
                     <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Botão Usuários: Ajustada a rota para o padrão sem /admin */}
                         <button 
-                          onClick={() => navigate(`/admin/companies/${company.id}/users`)}
+                          onClick={() => navigate(`/companies/${company.id}/users`)}
                           className="px-3 py-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition font-semibold text-xs border border-blue-100"
                         >
                           Usuários
+                        </button>
+
+                        <button 
+                          onClick={() => setCompanyToEdit(company)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition border border-transparent hover:border-blue-100"
+                          title="Editar Dados da Empresa"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
                         </button>
 
                         <button 
@@ -282,6 +291,7 @@ export const Dashboard = () => {
         </div>
       </div>
 
+      {/* MODAIS */}
       <LogoutModal 
         isOpen={showLogoutModal} 
         onClose={() => setShowLogoutModal(false)} 
@@ -295,6 +305,16 @@ export const Dashboard = () => {
         title="Excluir Empresa"
         itemName={companyToDelete?.nome}
         isLoading={loadingAction === companyToDelete?.id}
+      />
+
+      <EditCompanyModal
+        isOpen={!!companyToEdit}
+        onClose={() => setCompanyToEdit(null)}
+        company={companyToEdit}
+        onSuccess={() => {
+          setCompanyToEdit(null); // Fecha o modal
+          fetchCompanies(); // Recarrega os dados
+        }}
       />
 
     </div>

@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosRequestHeaders } from 'axios';
-import { authService } from './authService';
 
+// Cria a instância do Axios
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL, 
   headers: {
@@ -9,11 +9,11 @@ const api = axios.create({
 });
 
 // =================================================================
-// 1. INTERCEPTOR DE REQUISIÇÃO (Saída)
+// 1. INTERCEPTOR DE REQUISIÇÃO (Envia Token ou Master Key)
 // =================================================================
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // CORREÇÃO: Removemos o 'any' e usamos a tipagem correta do Axios
+    // Garante que headers existe
     if (!config.headers) {
       config.headers = {} as AxiosRequestHeaders;
     }
@@ -21,17 +21,15 @@ api.interceptors.request.use(
     const token = localStorage.getItem('awl_token');
     const masterKey = import.meta.env.VITE_MASTER_KEY;
     
-    // Verifica se é uma rota administrativa
-    const isAdminRoute = config.url?.includes('/admin');
-
-    // LÓGICA DE AUTENTICAÇÃO HIERÁRQUICA:
+    // LÓGICA DE AUTENTICAÇÃO:
     
-    // 1. Prioridade Máxima: Se tem usuário logado, usamos o Token.
+    // 1. Cenário Padrão: Usuário logado
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     } 
-    // 2. Fallback de "Bootstrap": Rota admin sem token + Chave Mestra
-    else if (isAdminRoute && masterKey) {
+    // 2. Cenário Bootstrap/Recuperação: Sem token, mas com Chave Mestra no .env
+    // Removemos a verificação de '/admin' pois suas rotas agora são '/companies', '/users', etc.
+    else if (masterKey) {
       config.headers['x-api-key'] = masterKey; 
     }
 
@@ -41,7 +39,7 @@ api.interceptors.request.use(
 );
 
 // =================================================================
-// 2. INTERCEPTOR DE RESPOSTA (Retorno)
+// 2. INTERCEPTOR DE RESPOSTA (Trata Erros Globais)
 // =================================================================
 api.interceptors.response.use(
   (response) => response,
@@ -52,24 +50,33 @@ api.interceptors.response.use(
 
       // 401: Token Expirado, Inválido ou Ausente
       if (status === 401) {
+        // Evita loop infinito se já estiver na tela de login
         if (!window.location.pathname.includes('/login')) {
-          console.warn('Sessão expirada ou inválida. Redirecionando...');
-          authService.logout(); 
+          console.warn('Sessão expirada. Redirecionando...');
+          
+          // EVITA DEPENDÊNCIA CIRCULAR:
+          // Em vez de chamar authService.logout(), limpamos direto aqui.
+          localStorage.removeItem('awl_token');
+          localStorage.removeItem('awl_user');
+          
+          // Redirecionamento forçado via window
+          window.location.href = '/login'; 
         }
       }
 
-      // 403: Proibido
+      // 403: Proibido (Logado, mas sem permissão)
       if (status === 403) {
         console.error('⛔ Acesso negado: Nível de permissão insuficiente.');
+        // Opcional: Você pode disparar um Toast/Alert global aqui se tiver um EventBus
       }
       
       // 500: Erro de Servidor
       if (status >= 500) {
-        console.error('🔥 Erro interno do servidor. Contate o suporte.');
+        console.error('🔥 Erro interno do servidor. Tente novamente mais tarde.');
       }
     } else {
-      // Erro de conexão
-      console.error('🚨 Erro de conexão: O backend parece estar offline.');
+      // Erro de conexão (Network Error)
+      console.error('🚨 Erro de conexão: Verifique sua internet ou se o backend está online.');
     }
     
     return Promise.reject(error);

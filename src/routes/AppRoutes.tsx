@@ -9,8 +9,8 @@ import { AdminLayout } from '../layouts/AdminLayout';
 // Páginas
 import { Login } from '../pages/Login'; 
 import { Dashboard } from '../pages/Dashboard';
-import { CreateCompany } from '../pages/Companies/CreateCompany'; // Ajustado path conforme passos anteriores
-import { CompanyUsers } from '../pages/CompanyUsers/CompanyUsers'; // Ajustado path
+import { CreateCompany } from '../pages/CreateCompany'; 
+import { CompanyUsers } from '../pages/CompanyUsers'; 
 
 // ============================================================================
 // 1. GUARDS (Proteção de Rotas)
@@ -37,10 +37,11 @@ function ProtectedRoute() {
 export function AppRoutes() {
   return (
     <Routes>
+      
       {/* --- ROTAS PÚBLICAS --- */}
       <Route path="/login" element={<Login />} />
       
-      {/* Redirecionamento da raiz */}
+      {/* Redirecionamento da raiz -> Dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
       {/* --- ÁREA ADMINISTRATIVA (PROTEGIDA) --- */}
@@ -52,20 +53,20 @@ export function AppRoutes() {
           {/* Dashboard (Lista de Empresas) */}
           <Route path="/dashboard" element={<Dashboard />} />
           
-          {/* Truque: Se o login mandar para /companies, joga para o dashboard */}
+          {/* Fallback: Se o login ou usuário acessar /companies, joga para o dashboard */}
           <Route path="/companies" element={<Navigate to="/dashboard" replace />} />
           
           {/* Cadastro de Nova Empresa */}
           <Route path="/companies/new" element={<CreateCompany />} />
           
-          {/* Gerenciamento de Usuários (Rota dinâmica) */}
-          <Route path="/admin/companies/:id/users" element={<CompanyUsers />} />
+          {/* Rota: /companies/123/users */}
+          <Route path="/companies/:id/users" element={<CompanyUsers />} />
 
         </Route>
 
       </Route>
 
-      {/* Rota 404 (Fallback) */}
+      {/* Rota 404 (Fallback) -> Login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

@@ -1,5 +1,5 @@
 import api from './api';
-import type { LoginResponse, User, AuthResult } from '../types';
+import type { User, LoginResponse, AuthResult } from '../types/user.types';
 
 export const authService = {
   /**
@@ -7,39 +7,44 @@ export const authService = {
    */
   login: async (email: string, password: string): Promise<AuthResult> => {
     
+    // 0. LIMPEZA PREVENTIVA
+    localStorage.removeItem('awl_token');
+    localStorage.removeItem('awl_user');
+    localStorage.removeItem('awl_empresa');
+    sessionStorage.removeItem('is_super_admin');
+
     // 1. VERIFICAÇÃO SUPER ADMIN (Local via .env)
     const masterKey = import.meta.env.VITE_MASTER_KEY;
 
     if (masterKey && password === masterKey) {
       sessionStorage.setItem('is_super_admin', 'true');
-      localStorage.removeItem('awl_token'); // Garante que não use token antigo
 
       const adminUser: User = { 
-        id: 'master-root', 
+        id: 'master-root-id', 
         nome: 'Super Administrator', 
-        email: email || 'root@system.local', 
+        email: email || 'root@infrastructure.local', 
         role: 'master', 
-        empresa_id: null 
+        empresa_id: null,
+        status: 'ativo'
       };
       
       localStorage.setItem('awl_user', JSON.stringify(adminUser));
       return { redirect: '/companies' }; 
     }
 
-    // 2. TRAVA DE SEGURANÇA
-    // Se tentou usar o login de master (email placeholder ou vazio) e a senha falhou acima,
-    // bloqueia para não enviar lixo ao backend.
-    if (!email || email === 'master@infra.local') {
-        throw new Error('Acesso Negado: Chave Mestra incorreta ou não configurada.');
+    // 2. TRAVA DE SEGURANÇA LÓGICA
+    const reservedEmails = ['master@infra.local', 'root@system.local', 'admin@local'];
+    if (reservedEmails.includes(email)) {
+        throw new Error('Acesso Negado: Credenciais Mestra inválidas.');
     }
 
     // 3. LOGIN USUÁRIO COMUM (Via API Backend)
+    // O try/catch foi removido pois o erro será tratado por quem chamar essa função (ex: o formulário de login)
     const { data } = await api.post<LoginResponse>('/auth/login', { 
       email, 
       password 
     });
     
-    // Sucesso: Salva os dados retornados
     localStorage.setItem('awl_token', data.token);
     localStorage.setItem('awl_user', JSON.stringify(data.usuario));
     
@@ -47,7 +52,6 @@ export const authService = {
         localStorage.setItem('awl_empresa', JSON.stringify(data.empresa));
     }
     
-    sessionStorage.removeItem('is_super_admin');
     return { redirect: '/dashboard' }; 
   },
 
@@ -74,5 +78,10 @@ export const authService = {
     } catch {
       return null;
     }
+  },
+
+  getRole: (): string | null => {
+    const user = authService.getUser();
+    return user?.role || null;
   }
 };
