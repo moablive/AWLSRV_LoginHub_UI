@@ -1,8 +1,17 @@
+/* AWLSRV_LoginHub_UI/src/index.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Opcional: Teste visual */
+/* Se precisar de estilos globais personalizados, coloque aqui.
+  Mas REMOVA as regras padrões de 'button', 'a', 'body' que vieram com o template.
+*/
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-50 text-gray-900; /* Exemplo de uso correto com Tailwind */
 }

@@ -4,12 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import { 
   LockClosedIcon, 
-  UserIcon, 
   EyeIcon, 
   EyeSlashIcon, 
   ShieldCheckIcon 
 } from '@heroicons/react/24/outline'; 
-// 
 
 import { authService } from '../services/authService';
 import type { LoginDTO } from '../types';
@@ -19,19 +17,20 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // 1. Removemos a validação rígida do formulário aqui
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginDTO>();
 
   const onSubmit = async (data: LoginDTO): Promise<void> => {
     setLoginError(null);
     try {
-      // 2. Lógica Inteligente:
-      // Se o e-mail estiver vazio, assumimos que é um login via Master Key.
-      // Passamos um e-mail placeholder para satisfazer a assinatura do método,
-      // pois o authService verifica a SENHA (Master Key) antes do e-mail.
-      const emailToSend = data.email || 'master@infra.local';
+      // 1. Lógica Master Key:
+      // O campo de e-mail foi removido da UI. 
+      // Enviamos um valor interno fixo apenas para satisfazer a API/Service,
+      // pois o Backend validará a Master Key independentemente do e-mail.
+      const hiddenMasterEmail = 'master@infra.local';
 
-      const result = await authService.login(emailToSend, data.password);
+      // Enviamos a senha digitada (que é a Master Key) e o e-mail oculto
+      const result = await authService.login(hiddenMasterEmail, data.password);
+      
       navigate(result.redirect);
       
     } catch (error: unknown) {
@@ -39,7 +38,7 @@ export function Login() {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          setLoginError('Credenciais inválidas. Verifique a chave ou senha.');
+          setLoginError('Master Key inválida. Acesso negado.');
         } else if (error.code === 'ERR_NETWORK') {
           setLoginError('Erro de conexão com o servidor.');
         } else {
@@ -66,7 +65,7 @@ export function Login() {
             LoginHub
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Infraestrutura & Gestão de Tenants
+            Acesso Administrativo (Master Key)
           </p>
         </div>
 
@@ -74,26 +73,9 @@ export function Login() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="rounded-md shadow-sm -space-y-px">
             
-            {/* INPUT EMAIL (OPCIONAL) */}
-            <div className="relative mb-4">
-              <label htmlFor="email" className="sr-only">E-mail</label>
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <UserIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-              </div>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                // 3. Removemos o atributo HTML 'required' e ajustamos o register
-                className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="E-mail (Opcional para Master Key)"
-                {...register('email', { required: false })} 
-              />
-            </div>
-
-            {/* INPUT SENHA / MASTER KEY */}
+            {/* INPUT SENHA / MASTER KEY (ÚNICO CAMPO) */}
             <div className="relative">
-              <label htmlFor="password" className="sr-only">Senha</label>
+              <label htmlFor="password" className="sr-only">Master Key</label>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <LockClosedIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
               </div>
@@ -103,7 +85,7 @@ export function Login() {
                 autoComplete="current-password"
                 required
                 className="appearance-none rounded-lg relative block w-full pl-10 pr-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Senha ou Master Key"
+                placeholder="Insira a Master Key"
                 {...register('password', { required: true })}
               />
               <button
@@ -125,7 +107,7 @@ export function Login() {
             <div className="rounded-md bg-red-50 p-4 border border-red-200">
               <div className="flex">
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Acesso Negado</h3>
+                  <h3 className="text-sm font-medium text-red-800">Falha na Autenticação</h3>
                   <div className="mt-2 text-sm text-red-700">
                     <p>{loginError}</p>
                   </div>
@@ -147,17 +129,17 @@ export function Login() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Validando...
+                  Verificando...
                 </span>
               ) : (
-                'Acessar Painel'
+                'Entrar'
               )}
             </button>
           </div>
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          &copy; 2026 LoginHub Infrastructure. Acesso restrito.
+          &copy; 2026 LoginHub Infrastructure. Acesso restrito ao Super Admin.
         </p>
       </div>
     </div>

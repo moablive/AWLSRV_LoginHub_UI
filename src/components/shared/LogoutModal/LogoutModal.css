@@ -5,80 +5,111 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); /* Um pouco mais escuro para foco */
-  backdrop-filter: blur(5px);
-  z-index: 1100; /* Acima de tudo */
+  background-color: rgba(0, 0, 0, 0.4); /* Levemente mais claro para elegância */
+  backdrop-filter: blur(8px); /* Aumentado para efeito premium */
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .awl-logout-card {
   background: white;
-  padding: 2rem;
-  border-radius: 20px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+  padding: 2.5rem 2rem;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   text-align: center;
-  max-width: 380px;
+  max-width: 400px;
   width: 90%;
-  transform: scale(0.9);
-  animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-/* Ícone de Saída (Vermelho Suave) */
+/* Ícone de Saída (Animação Shake corrigida) */
 .logout-icon-container {
-  width: 70px;
-  height: 70px;
-  background-color: #f8d7da; /* Vermelho Bootstrap bem claro */
-  color: #dc3545; /* Vermelho Perigo */
+  width: 80px;
+  height: 80px;
+  background-color: #fff5f5;
+  color: #e03131;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1.2rem auto;
-  font-size: 2rem;
-  /* Animação sutil de balanço */
-  animation: shake 2s infinite; 
+  margin: 0 auto 1.5rem auto;
+  font-size: 2.2rem;
+  border: 2px solid #ffe3e3;
+  animation: shake 3s infinite ease-in-out;
 }
 
-/* Botões lado a lado */
+/* CONTAINER DE AÇÕES - Flexbox para evitar achatamento */
 .logout-actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+/* ESTILO BASE DOS BOTÕES - O fim do bug "achatado" */
+.logout-actions button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Aqui está a correção: Padding e Altura Mínima */
+  padding: 0.75rem 1.5rem; 
+  min-height: 48px; 
+  
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: none;
+  outline: none;
 }
 
 .btn-cancel {
-  background-color: #f1f3f5;
+  background-color: #f8f9fa;
   color: #495057;
-  border: none;
-  font-weight: 600;
-  transition: all 0.2s;
+  border: 1px solid #e9ecef !important;
 }
+
 .btn-cancel:hover {
-  background-color: #e9ecef;
+  background-color: #f1f3f5;
+  transform: translateY(-1px);
 }
 
 .btn-confirm-logout {
-  background-color: #dc3545;
+  background-color: #fa5252;
   color: white;
-  border: none;
-  font-weight: 600;
-  box-shadow: 0 4px 6px rgba(220, 53, 69, 0.3);
-  transition: all 0.2s;
-}
-.btn-confirm-logout:hover {
-  background-color: #c82333;
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(250, 82, 82, 0.25);
 }
 
-/* Animações */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes popUp { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+.btn-confirm-logout:hover {
+  background-color: #e03131;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(250, 82, 82, 0.35);
+}
+
+.btn-confirm-logout:active {
+  transform: translateY(0);
+}
+
+/* Animações Modernas */
+@keyframes fadeIn { 
+  from { opacity: 0; } 
+  to { opacity: 1; } 
+}
+
+@keyframes popUp { 
+  from { opacity: 0; transform: scale(0.8) translateY(20px); } 
+  to { opacity: 1; transform: scale(1) translateY(0); } 
+}
+
 @keyframes shake {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-5deg); }
-  75% { transform: rotate(5deg); }
+  10%, 30%, 50%, 70%, 90% { transform: rotate(-8deg); }
+  20%, 40%, 60%, 80% { transform: rotate(8deg); }
 }
