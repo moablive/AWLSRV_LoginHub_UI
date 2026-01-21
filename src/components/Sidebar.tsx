@@ -1,58 +1,62 @@
 import { NavLink } from 'react-router-dom';
+import { authService } from '../services/authService';
 import { 
-  HomeIcon, 
   BuildingOfficeIcon, 
+  PlusCircleIcon, 
   ArrowLeftOnRectangleIcon 
 } from '@heroicons/react/24/outline';
-import { authService } from '../services/authService';
 
 export const Sidebar = () => {
-  const linkClass = "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors duration-200 mb-1";
+  // Estilos do Tailwind
+  const baseClass = "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors mb-1 font-medium";
   const activeClass = "bg-blue-600 text-white shadow-md";
-  const inactiveClass = "text-gray-400 hover:bg-white/5 hover:text-white";
+  const inactiveClass = "text-gray-400 hover:bg-gray-800 hover:text-white";
 
   return (
-    <aside className="w-64 h-full bg-[#111827] flex flex-col border-r border-gray-800 shadow-xl">
+    <aside className="w-64 bg-[#111827] text-white h-screen flex flex-col border-r border-gray-800 shadow-xl">
       
-      <div className="h-20 flex items-center px-6 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          
-          {/* ✅ ALTERADO: Agora exibe o favicon.svg */}
-          <img 
-            src="/favicon.svg" 
-            alt="Logo LoginHub" 
-            className="w-8 h-8 object-contain" // Mantém proporção e define tamanho
-          />
-
-          <span className="text-xl font-bold text-white tracking-wide">
-            LoginHub
+      {/* Cabeçalho do Sidebar */}
+      <div className="h-16 flex items-center px-6 border-b border-gray-800 bg-[#0f1523]">
+        <div className="flex items-center gap-2">
+          {/* Se tiver logo, coloque aqui */}
+          <span className="text-lg font-bold tracking-wide text-white">
+            LoginHub <span className="text-blue-500">Admin</span>
           </span>
         </div>
       </div>
-
-      <nav className="flex-1 px-4 py-6 overflow-y-auto">
-        <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
-          Principal
+      
+      <nav className="flex-1 px-3 py-6 space-y-1">
+        <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Gestão de Tenants
         </p>
-        
-        <NavLink to="/dashboard" className={({ isActive }) => `${linkClass} ${isActive ? activeClass : inactiveClass}`}>
-          <HomeIcon className="h-5 w-5" />
-          <span>Dashboard</span>
+
+        {/* Link para Listagem */}
+        <NavLink 
+          to="/dashboard" 
+          className={({ isActive }) => `${baseClass} ${isActive ? activeClass : inactiveClass}`}
+        >
+          <BuildingOfficeIcon className="h-5 w-5" />
+          Empresas
         </NavLink>
 
-        <NavLink to="/companies" className={({ isActive }) => `${linkClass} ${isActive ? activeClass : inactiveClass}`}>
-          <BuildingOfficeIcon className="h-5 w-5" />
-          <span>Empresas</span>
+        {/* Link para Criação */}
+        <NavLink 
+          to="/companies/new" 
+          className={({ isActive }) => `${baseClass} ${isActive ? activeClass : inactiveClass}`}
+        >
+          <PlusCircleIcon className="h-5 w-5" />
+          Nova Empresa
         </NavLink>
       </nav>
 
+      {/* Rodapé / Logout */}
       <div className="p-4 border-t border-gray-800 bg-[#0f1523]">
         <button 
           onClick={() => authService.logout()} 
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all text-sm font-semibold group"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-900/30 text-red-400 rounded-lg hover:bg-red-600 hover:text-white transition-all text-sm font-semibold"
         >
-          <ArrowLeftOnRectangleIcon className="h-5 w-5 group-hover:text-white transition-colors" />
-          <span>Sair do Sistema</span>
+          <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+          Sair do Sistema
         </button>
       </div>
     </aside>

@@ -1,38 +1,16 @@
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
-// Services
-import { authService } from '../services/authService';
-
-// Layout (Sidebar + Container Principal)
+// Layout
 import { AdminLayout } from '../layouts/AdminLayout';
 
 // Páginas
-import { Login } from '../pages/Login'; 
+import { Login } from '../pages/Login';
 import { Dashboard } from '../pages/Dashboard';
 import { CreateCompany } from '../pages/CreateCompany'; 
-import { CompanyUsers } from '../pages/CompanyUsers'; 
+import { CompanyUsers } from '../pages/CompanyUsers';
 
-// ============================================================================
-// 1. GUARDS (Proteção de Rotas)
-// ============================================================================
-
-/**
- * Verifica se está autenticado (seja via Token OU via Master Key)
- */
-function ProtectedRoute() {
-  const isAuth = authService.isAuthenticated();
-
-  if (!isAuth) {
-    // Redireciona para login se não tiver permissão
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
-}
-
-// ============================================================================
-// 2. DEFINIÇÃO DAS ROTAS
-// ============================================================================
+// Guardiões
+import { SuperAdminRoute } from './SuperAdminRoute';
 
 export function AppRoutes() {
   return (
@@ -41,32 +19,32 @@ export function AppRoutes() {
       {/* --- ROTAS PÚBLICAS --- */}
       <Route path="/login" element={<Login />} />
       
-      {/* Redirecionamento da raiz -> Dashboard */}
+      {/* Redireciona a raiz para o dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* --- ÁREA ADMINISTRATIVA (PROTEGIDA) --- */}
-      <Route element={<ProtectedRoute />}>
+      {/* --- ÁREA DO SUPER ADMIN (Protegida por Master Key) --- */}
+      <Route element={<SuperAdminRoute />}>
         
-        {/* Envolvemos as páginas no Layout para mostrar a Sidebar */}
+        {/* O Layout contém o Sidebar */}
         <Route element={<AdminLayout />}>
           
-          {/* Dashboard (Lista de Empresas) */}
+          {/* Listagem de Empresas (Dashboard) */}
           <Route path="/dashboard" element={<Dashboard />} />
           
-          {/* Fallback: Se o login ou usuário acessar /companies, joga para o dashboard */}
+          {/* Alias: /companies também leva ao dashboard */}
           <Route path="/companies" element={<Navigate to="/dashboard" replace />} />
           
-          {/* Cadastro de Nova Empresa */}
+          {/* Criar Nova Empresa */}
           <Route path="/companies/new" element={<CreateCompany />} />
           
-          {/* Rota: /companies/123/users */}
+          {/* Gerenciar Usuários da Empresa */}
           <Route path="/companies/:id/users" element={<CompanyUsers />} />
 
         </Route>
 
       </Route>
 
-      {/* Rota 404 (Fallback) -> Login */}
+      {/* Rota 404 -> Login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
